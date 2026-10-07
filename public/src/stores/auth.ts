@@ -5,6 +5,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { createSession, requestMagicLink, setAccessTokenProvider } from '@/lib/api';
+import { DEMO_MODE, DEMO_USER } from '@/lib/mock';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<FirebaseUser | null>(null);
@@ -20,6 +21,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** Écran « Bon retour ! » : lien Firebase sous le capot, déclaration serveur tolérante. */
   async function sendMagicLink(email: string) {
+    // Mode démo : la session s'ouvre immédiatement, sans lien par e-mail.
+    if (DEMO_MODE) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      user.value = { uid: DEMO_USER.id, email } as FirebaseUser;
+      return;
+    }
     await sendSignInLinkToEmail(auth, email, { url: actionUrl(), handleCodeInApp: true });
     window.localStorage.setItem('emailForSignIn', email);
     await requestMagicLink(email).catch(() => {
@@ -28,6 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function finishMagicLink(href = window.location.href) {
+    if (DEMO_MODE) return;
     let email = window.localStorage.getItem('emailForSignIn') ?? '';
     if (!email) email = window.prompt('Confirmez votre e-mail :') ?? '';
     if (!isSignInWithEmailLink(auth, href)) throw new Error('Lien invalide.');
@@ -45,6 +53,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    if (DEMO_MODE) {
+      user.value = null;
+      accessToken.value = null;
+      return;
+    }
     accessToken.value = null;
     await auth.signOut();
     user.value = null;
@@ -52,6 +65,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   function initAuthListener() {
     setAccessTokenProvider(getToken);
+    // Mode démo : aucune connexion Firebase. On reste déconnecté au départ pour
+    // pouvoir relire les écrans d'accès, puis le CTA ouvre la session fictive.
+    if (DEMO_MODE) {
+      user.value = null;
+      loading.value = false;
+      ready.value = true;
+      return;
+    }
     auth.onAuthStateChanged((u) => {
       user.value = u;
       loading.value = false;

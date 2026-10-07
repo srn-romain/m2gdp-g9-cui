@@ -14,6 +14,16 @@ import type {
   User,
   UserUpdate,
 } from './types';
+import {
+  DEMO_ALL,
+  DEMO_MESSAGES,
+  DEMO_MODE,
+  DEMO_PAST,
+  DEMO_TABLE_GRATIN,
+  DEMO_UPCOMING,
+  DEMO_USER,
+  demoPage,
+} from './mock';
 
 const BASE = '/api/v1';
 
@@ -108,14 +118,17 @@ export const apiDelete = <T>(path: string) => apiFetch<T>(path, { method: 'DELET
 
 /** Écran « Bon retour ! ». Répond toujours 202, même si l'adresse est inconnue. */
 export const requestMagicLink = (email: string) =>
-  apiPost<void>(`${BASE}/auth/magic-links`, { email }, { auth: false });
+  DEMO_MODE ? Promise.resolve(undefined) : apiPost<void>(`${BASE}/auth/magic-links`, { email }, { auth: false });
 
 /** Échange le jeton du lien magique contre une session d'une heure. */
 export const createSession = (token: string) =>
-  apiPost<Session>(`${BASE}/auth/sessions`, { token }, { auth: false });
+  DEMO_MODE
+    ? Promise.resolve({ accessToken: 'demo', tokenType: 'Bearer', expiresIn: 3600 } as Session)
+    : apiPost<Session>(`${BASE}/auth/sessions`, { token }, { auth: false });
 
-export const getMe = () => apiGet<User>(`${BASE}/me`);
-export const updateMe = (patch: UserUpdate) => apiPatch<User>(`${BASE}/me`, patch);
+export const getMe = () => (DEMO_MODE ? Promise.resolve(DEMO_USER) : apiGet<User>(`${BASE}/me`));
+export const updateMe = (patch: UserUpdate) =>
+  DEMO_MODE ? Promise.resolve({ ...DEMO_USER, ...patch }) : apiPatch<User>(`${BASE}/me`, patch);
 
 export interface TableQuery {
   lat?: number;
@@ -132,6 +145,7 @@ export interface TableQuery {
 }
 
 export function listTables(params: TableQuery = {}): Promise<Page<Table>> {
+  if (DEMO_MODE) return Promise.resolve(demoPage(DEMO_ALL));
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue;
@@ -143,22 +157,44 @@ export function listTables(params: TableQuery = {}): Promise<Page<Table>> {
 }
 
 export const listMyTables = (scope: TableScope = 'upcoming', page = 1, pageSize = 20) =>
-  apiGet<Page<Table>>(`${BASE}/me/tables?scope=${scope}&page=${page}&pageSize=${pageSize}`);
+  DEMO_MODE
+    ? Promise.resolve(demoPage(scope === 'past' ? DEMO_PAST : scope === 'upcoming' ? DEMO_UPCOMING : DEMO_ALL))
+    : apiGet<Page<Table>>(`${BASE}/me/tables?scope=${scope}&page=${page}&pageSize=${pageSize}`);
 
-export const getTable = (tableId: string) => apiGet<Table>(`${BASE}/tables/${tableId}`);
-export const createTable = (body: TableCreate) => apiPost<Table>(`${BASE}/tables`, body);
+export const getTable = (tableId: string) =>
+  DEMO_MODE
+    ? Promise.resolve(DEMO_ALL.find((t) => t.id === tableId) ?? DEMO_TABLE_GRATIN)
+    : apiGet<Table>(`${BASE}/tables/${tableId}`);
+
+export const createTable = (body: TableCreate) =>
+  DEMO_MODE
+    ? Promise.resolve({ ...DEMO_TABLE_GRATIN, id: 'demo-nouvelle', dishName: body.dishName, title: undefined })
+    : apiPost<Table>(`${BASE}/tables`, body);
 
 /** Rejouable sans risque : l'Idempotency-Key est fournie par l'appelant. */
 export const joinTable = (tableId: string, body: ParticipationCreate, idempotencyKey: string) =>
-  apiPost<Participation>(`${BASE}/tables/${tableId}/participations`, body, {
-    headers: { 'Idempotency-Key': idempotencyKey },
-  });
+  DEMO_MODE
+    ? Promise.resolve(DEMO_TABLE_GRATIN.myParticipation as Participation)
+    : apiPost<Participation>(`${BASE}/tables/${tableId}/participations`, body, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
 
 export const leaveTable = (tableId: string) =>
-  apiDelete<void>(`${BASE}/tables/${tableId}/participations/me`);
+  DEMO_MODE ? Promise.resolve(undefined) : apiDelete<void>(`${BASE}/tables/${tableId}/participations/me`);
 
 export const listMessages = (tableId: string, page = 1, pageSize = 50) =>
-  apiGet<Page<Message>>(`${BASE}/tables/${tableId}/messages?page=${page}&pageSize=${pageSize}`);
+  DEMO_MODE
+    ? Promise.resolve(demoPage(DEMO_MESSAGES))
+    : apiGet<Page<Message>>(`${BASE}/tables/${tableId}/messages?page=${page}&pageSize=${pageSize}`);
 
 export const postMessage = (tableId: string, body: MessageCreate) =>
-  apiPost<Message>(`${BASE}/tables/${tableId}/messages`, body);
+  DEMO_MODE
+    ? Promise.resolve({
+        id: `m-${Date.now()}`,
+        tableId,
+        type: 'TEXT',
+        text: body.text,
+        author: { id: DEMO_USER.id, firstName: DEMO_USER.firstName, neighborhood: 'Lyon 7e', city: 'Lyon' },
+        sentAt: new Date().toISOString(),
+      } as Message)
+    : apiPost<Message>(`${BASE}/tables/${tableId}/messages`, body);

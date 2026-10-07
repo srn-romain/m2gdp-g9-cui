@@ -30,6 +30,16 @@ La clé web Firebase n'est pas un secret : elle est restreinte par les domaines 
 et par référent. `VITE_GOOGLE_MAPS_API_KEY` peut rester vide, le géocodage passe par le
 proxy du Worker (clé serveur uniquement).
 
+### Mode démo
+
+Le site déployé tourne en **mode démo** (`VITE_DEMO_MODE=true` dans
+`public/.env.production`) : les données viennent de `public/src/lib/mock.ts` et la
+connexion ouvre une session fictive, sans Firebase ni API. C'est ce qui permet de relire
+les écrans sur un téléphone pendant la phase de design.
+
+Avant la mise en production réelle : passer `VITE_DEMO_MODE` à `false`, activer la
+connexion par lien magique dans la console Firebase, puis redéployer.
+
 ## Déploiement
 
 1. **API** (Cloudflare)
