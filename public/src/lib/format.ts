@@ -8,6 +8,7 @@ import type {
 } from './types';
 
 const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+const JOURS_LONGS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const MOIS = [
   'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
   'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
@@ -24,6 +25,11 @@ export function formatDay(iso: string, now = new Date()): string {
   if (delta === 0) return "Aujourd'hui";
   if (delta === 1) return 'Demain';
   if (delta === -1) return 'Hier';
+  // Dans la semaine qui vient, la maquette écrit le jour en entier (« Dimanche »).
+  if (delta > 1 && delta <= 6) {
+    const jour = JOURS_LONGS[d.getDay()];
+    return jour.charAt(0).toUpperCase() + jour.slice(1);
+  }
   return `${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]}`;
 }
 
