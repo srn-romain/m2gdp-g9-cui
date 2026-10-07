@@ -40,6 +40,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Les illustrations importées depuis src/assets doivent être disponibles hors ligne.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
@@ -57,6 +59,12 @@ export default defineConfig({
             },
           },
           { urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i, handler: 'CacheFirst', options: { cacheName: 'images', expiration: { maxEntries: 100, maxAgeSeconds: 2592000 } } },
+          {
+            // Météo : mise en cache 30 min, tolérante au hors-ligne.
+            urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'meteo', networkTimeoutSeconds: 5, expiration: { maxEntries: 4, maxAgeSeconds: 1800 } },
+          },
           { urlPattern: /^https:\/\/.*\.tile\.openstreetmap\.org\/.*/i, handler: 'CacheFirst', options: { cacheName: 'osm', expiration: { maxEntries: 200, maxAgeSeconds: 2592000 } } },
         ],
       },
