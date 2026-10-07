@@ -10,6 +10,9 @@ const CATALOGUE: Array<{ match: RegExp; id: string }> = [
   { match: /quiche|tarte sal|tourte|pissaladi/i, id: 'photo-1456014673271-90b7fddf2eea' },
   { match: /lasagn|gratin de p/i, id: 'photo-1654780105295-9227206f11ec' },
   { match: /salade|crudit|taboul|gaspacho/i, id: 'photo-1546069901-ba9599a7e63c' },
+  // Ingrédients proposés par l'hôte (légumes frais, herbes).
+  { match: /courgette|aubergine|carotte|poivron|brocoli|légume|legume|concombre|oignon/i, id: 'photo-1546069901-ba9599a7e63c' },
+  { match: /parmesan|fromage|comté|comte|gruyère|gruyere|mozzarella|feta|chèvre|chevre/i, id: 'photo-1486297678162-eb2a19b0a32d' },
   { match: /poulet|rôti|roti|volaille|magret/i, id: 'photo-1670398564097-0762e1b30b3a' },
   { match: /pizza|focaccia|calzone/i, id: 'photo-1571997478779-2adcbbe9ab2f' },
   { match: /tarte|clafouti|crumble|gâteau|gateau|dessert|crêpe|crepe/i, id: 'photo-1620980776848-84ac10194945' },

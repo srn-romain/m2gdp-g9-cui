@@ -70,6 +70,11 @@ export const DEMO_TABLE_GRATIN: Table = {
     apport('c-1', 'pommes de terre', 1, 'KG', 'bernard'),
     apport('c-2', 'salade verte', 1, 'UNIT', 'Yann'),
   ],
+  wantedContributions: [
+    { label: 'Pommes de terre', quantity: 1.5, unit: 'KG' },
+    { label: 'Crème fraîche', quantity: 20, unit: 'CL' },
+    { label: 'Comté', quantity: 200, unit: 'G' },
+  ],
   myParticipation: {
     id: 'p-1',
     tableId: 'demo-gratin',
@@ -98,6 +103,11 @@ export const DEMO_TABLE_RISOTTO: Table = {
   host: personne('demo-camille', 'Camille'),
   location: { neighborhood: 'Lyon 7e', city: 'Lyon', coordinates: { latitude: 45.7505, longitude: 4.8477 } },
   contributions: [apport('c-3', 'parmesan', 200, 'KG', 'Julie')],
+  wantedContributions: [
+    { label: 'Courgettes', quantity: 4, unit: null },
+    { label: 'Riz arborio', quantity: 500, unit: 'G' },
+    { label: 'Parmesan', quantity: 1, unit: 'UNIT' },
+  ],
   myParticipation: {
     id: 'p-2',
     tableId: 'demo-risotto',

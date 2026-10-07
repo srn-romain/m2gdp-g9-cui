@@ -112,6 +112,13 @@ export interface ContributionInput {
   unit?: QuantityUnit;
 }
 
+/** Ingrédient proposé par l'hôte : liste de courses, rattachée à aucune participation. */
+export interface WantedContribution {
+  label: string;
+  quantity?: number | null;
+  unit?: QuantityUnit | null;
+}
+
 export interface Participation {
   id: string;
   tableId: string;
@@ -143,6 +150,8 @@ export interface Table {
   host?: UserSummary;
   location: Location;
   contributions?: Contribution[];
+  /** Ingrédients proposés par l'hôte, à apporter par les invités. */
+  wantedContributions?: WantedContribution[];
   myParticipation?: Participation | null;
   distanceMeters?: number | null;
   createdAt: string;
@@ -157,6 +166,7 @@ export interface TableCreate {
   visibility?: Visibility;
   isVegetarian?: boolean;
   hasAllergenNotice?: boolean;
+  wantedContributions?: WantedContribution[];
   location: Location;
 }
 

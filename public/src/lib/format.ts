@@ -132,6 +132,19 @@ export function contributionLine(contribution: Contribution): string {
   return quantity ? `${contribution.label} · ${quantity}` : contribution.label;
 }
 
+/** « 500 g », « 4 », « 1 portion » : quantité d'un ingrédient proposé par l'hôte. */
+export function formatIngredientQuantity(
+  quantity?: number | null,
+  unit?: QuantityUnit | null,
+): string {
+  if (quantity == null) return '';
+  const n = Number.isInteger(quantity) ? String(quantity) : String(quantity).replace('.', ',');
+  const u = unit ? UNIT_LABELS[unit] : '';
+  if (!u) return n;
+  if (u === 'portion') return `${n} ${quantity > 1 ? 'portions' : 'portion'}`;
+  return `${n} ${u}`;
+}
+
 export function initials(firstName: string, lastName = ''): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }

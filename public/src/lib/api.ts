@@ -170,7 +170,13 @@ export const getTable = (tableId: string) =>
 
 export const createTable = (body: TableCreate) =>
   DEMO_MODE
-    ? Promise.resolve({ ...DEMO_TABLE_GRATIN, id: 'demo-nouvelle', dishName: body.dishName, title: undefined })
+    ? Promise.resolve({
+        ...DEMO_TABLE_GRATIN,
+        id: 'demo-nouvelle',
+        dishName: body.dishName,
+        title: undefined,
+        wantedContributions: body.wantedContributions ?? [],
+      })
     : apiPost<Table>(`${BASE}/tables`, body);
 
 /** Rejouable sans risque : l'Idempotency-Key est fournie par l'appelant. */
