@@ -1,0 +1,16 @@
+name = "labonnetablee-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-09"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+FIREBASE_PROJECT_ID = "labonnetablee-cb767"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "labonnetablee-db"
+database_id = "2db9f691-380d-4f38-ab36-5b73430fc42e"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "labonnetablee-files"
