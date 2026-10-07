@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft } from '@lucide/vue';
 import { useRouter } from 'vue-router';
+import logo from '@/assets/la-bonne-tablee-horizontal.png';
 
 withDefaults(
   defineProps<{
@@ -23,7 +24,7 @@ function goBack(fallback: string) {
 </script>
 
 <template>
-  <header class="app-pad sticky top-0 z-30 flex items-center gap-2 bg-creme py-3">
+  <header class="app-pad sticky top-0 z-30 flex items-center gap-2 bg-creme py-5">
     <button
       v-if="back"
       type="button"
@@ -37,12 +38,8 @@ function goBack(fallback: string) {
     <h1 v-if="title" class="min-w-0 flex-1 truncate text-title-lg font-titres text-sauge">
       {{ title }}
     </h1>
-    <RouterLink
-      v-else
-      to="/"
-      :class="plain ? 'sr-only' : 'min-w-0 flex-1 truncate text-title-md font-titres text-sauge'"
-    >
-      La Bonne Tablée
+    <RouterLink v-else to="/" :class="plain ? 'sr-only' : 'flex min-w-0 flex-1 items-center'">
+      <img :src="logo" alt="La Bonne Tablée" class="h-5 w-auto" />
     </RouterLink>
 
     <slot name="right" />

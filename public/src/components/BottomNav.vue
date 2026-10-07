@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Compass, House, MessageCircle, Plus, User } from '@lucide/vue';
+import { House, MessageCircle, Search, User, UtensilsCrossed } from '@lucide/vue';
 import type { Component } from 'vue';
 
 const items: Array<{ to: string; label: string; icon: Component; exact?: boolean }> = [
   { to: '/', label: 'Accueil', icon: House, exact: true },
-  { to: '/explorer', label: 'Explorer', icon: Compass },
-  { to: '/creer', label: 'Créer', icon: Plus },
+  { to: '/explorer', label: 'Explorer', icon: Search },
+  { to: '/creer', label: 'Créer', icon: UtensilsCrossed },
   { to: '/messages', label: 'Messages', icon: MessageCircle },
   { to: '/profil', label: 'Profil', icon: User },
 ];
