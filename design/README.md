@@ -84,6 +84,7 @@ Base 375 px (`1 px` de maquette = `1 dp`). 15 styles.
 | Jeton | Valeur | Pourquoi |
 |---|---|---|
 | `couleur.sauge-fonce` | `#3F5A48` | Même teinte que le vert sauge, assez sombre pour les titres Chewy de 18 à 20 px et les petites étiquettes vertes. Sans elle, `#5B8266` plafonne à 4,07:1 et échoue au contraste AA en dessous de 24 px. |
+| `couleur.surface` | `#FFFFFF` | Fond des champs de saisie. La maquette les montre blancs ; `#FAF7F2` reste réservé aux fonds d'écran. |
 
 ### Contrastes mesurés (sur fond crème `#FAF7F2`)
 
@@ -101,7 +102,9 @@ Base 375 px (`1 px` de maquette = `1 dp`). 15 styles.
 - Le CTA est en `button/lg` (18 px **Bold**) précisément pour que crème sur terracotta passe.
   Si un bouton doit descendre sous 18 px gras, assombrir le fond à `#B8442A` (5,0:1).
 - Tout le texte secondaire est de l'**ardoise à 70 %**, jamais un gris inventé.
-- Le fond est **toujours** `#FAF7F2` : pas de blanc pur, pas de blanc cassé intermédiaire.
+- Le fond d'écran est **toujours** `#FAF7F2` : pas de blanc pur, pas de blanc cassé
+  intermédiaire. Seule exception : `couleur.surface` (`#FFFFFF`) pour les champs de saisie.
+- Les icônes sont en **vert sauge** (`couleur.sauge`), y compris à l'intérieur des champs.
 
 ---
 

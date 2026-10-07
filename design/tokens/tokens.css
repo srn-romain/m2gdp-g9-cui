@@ -15,6 +15,9 @@
   /* --- Extension (à valider) -------------------------------------------- */
   --lbt-sauge-fonce: #3f5a48;
 
+  /* --- Surfaces --------------------------------------------------------- */
+  --lbt-surface: #ffffff;
+
   /* --- Couleurs de texte dérivées --------------------------------------- */
   --lbt-texte-principal: var(--lbt-ardoise);
   --lbt-texte-secondaire: rgba(43, 43, 43, 0.7);

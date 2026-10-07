@@ -23,12 +23,19 @@
   --color-sauge-fonce: #3f5a48;
   --color-ardoise: #2b2b2b;
   --color-secondaire: rgba(43, 43, 43, 0.7);
+  /* Fond des champs de saisie (la maquette les montre blancs). */
+  --color-surface: #ffffff;
 
   /* --- Titres, Chewy 400 ------------------------------------------------ */
   --text-display-xl: 2rem;
   --text-display-xl--line-height: 2.375rem;
   --text-display-xl--letter-spacing: -0.5px;
   --text-display-xl--font-weight: 400;
+  /* Titre des écrans d'accueil (Bienvenue !, Bon retour !) : plus grand que display/xl. */
+  --text-display-2xl: 2.5rem;
+  --text-display-2xl--line-height: 2.75rem;
+  --text-display-2xl--letter-spacing: -0.6px;
+  --text-display-2xl--font-weight: 400;
   --text-display-lg: 1.75rem;
   --text-display-lg--line-height: 2.125rem;
   --text-display-lg--letter-spacing: -0.4px;

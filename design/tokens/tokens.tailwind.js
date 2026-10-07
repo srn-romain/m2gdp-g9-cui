@@ -18,6 +18,8 @@ module.exports = {
         ardoise: '#2B2B2B',
         // Extension à valider : contraste AA pour les titres de moins de 24 px.
         'sauge-fonce': '#3F5A48',
+        // Fond des champs de saisie, blancs dans la maquette.
+        surface: '#FFFFFF',
       },
       fontFamily: {
         titres: ['Chewy', 'Comic Sans MS', 'cursive'],
