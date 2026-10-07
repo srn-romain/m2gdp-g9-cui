@@ -3,13 +3,22 @@ import { CalendarClock, Check, MapPin, TriangleAlert, Users } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import AppBar from '@/components/AppBar.vue';
+import DishPhoto from '@/components/DishPhoto.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { dishPhotoUrl } from '@/lib/dishPhoto';
-import { contributionLine, formatDistance, formatDay, formatSeats, formatTime, tableTitle } from '@/lib/format';
+import {
+  contributionLine,
+  formatDistance,
+  formatDay,
+  formatIngredientQuantity,
+  formatSeats,
+  formatTime,
+  tableTitle,
+} from '@/lib/format';
 import { getTable } from '@/lib/api';
 import type { Table } from '@/lib/types';
 
@@ -21,6 +30,7 @@ const error = ref<string | null>(null);
 
 const title = computed(() => (table.value ? tableTitle(table.value) : ''));
 const contributions = computed(() => table.value?.contributions ?? []);
+const wanted = computed(() => table.value?.wantedContributions ?? []);
 const isHost = computed(() => table.value?.myParticipation?.role === 'HOST');
 const joined = computed(() => Boolean(table.value?.myParticipation));
 const isPast = computed(() => table.value?.status === 'PASSED');
@@ -118,6 +128,35 @@ onMounted(async () => {
         <p v-if="table.description" class="text-body-lg text-ardoise">{{ table.description }}</p>
 
         <Separator />
+
+        <section v-if="wanted.length" class="flex flex-col gap-3">
+          <div class="flex flex-col gap-1">
+            <h2 class="text-body-lg-strong text-ardoise">Ce que les invités apportent</h2>
+            <p class="text-body-sm text-secondaire">
+              {{ isHost ? 'Tu proposes ces ingrédients : tes voisins choisiront le leur.' : "Choisis ton ingrédient en rejoignant la tablée." }}
+            </p>
+          </div>
+          <ul class="flex flex-col gap-2">
+            <li
+              v-for="(ingredient, index) in wanted"
+              :key="`${ingredient.label}-${index}`"
+              class="flex items-center gap-3 rounded-xl border border-ardoise/10 py-2 pr-3 pl-2"
+            >
+              <DishPhoto :dish-name="ingredient.label" :size="40" rounded="rounded-full" />
+              <span class="flex min-w-0 flex-1 flex-col">
+                <span class="text-body-md font-bold text-ardoise">{{ ingredient.label }}</span>
+                <span
+                  v-if="formatIngredientQuantity(ingredient.quantity, ingredient.unit)"
+                  class="text-micro text-secondaire"
+                >
+                  {{ formatIngredientQuantity(ingredient.quantity, ingredient.unit) }}
+                </span>
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <Separator v-if="wanted.length" />
 
         <section class="flex flex-col gap-3">
           <h2 class="text-body-lg-strong text-ardoise">Ce que chacun apporte</h2>
