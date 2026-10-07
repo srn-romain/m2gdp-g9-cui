@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { ChevronRight, Leaf, LogOut, Utensils } from '@lucide/vue';
+import { ChevronRight, Leaf, LogOut, MapPin, Utensils } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
+import AddressField from '@/components/AddressField.vue';
 import AppBar from '@/components/AppBar.vue';
 import InstallAppCard from '@/components/InstallAppCard.vue';
 import MascotBubble from '@/components/MascotBubble.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
 import { listMyTables } from '@/lib/api';
 import { DIETARY_OPTIONS, formatDietary, initials } from '@/lib/format';
 import { useAuthStore } from '@/stores/auth';
@@ -25,6 +28,12 @@ const preferencesOpen = ref(false);
 const preferences = ref<string[]>([]);
 const saving = ref(false);
 
+const { chercherUne } = useAddressSearch();
+const adresseOpen = ref(false);
+const adresseTexte = ref('');
+const adresseChoisie = ref<Adresse | null>(null);
+const savingAdresse = ref(false);
+
 const profile = computed(() => meStore.profile);
 const fullName = computed(() =>
   profile.value ? `${profile.value.firstName} ${profile.value.lastName}`.trim() : '',
@@ -35,6 +44,39 @@ function togglePreference(value: string, checked: boolean) {
   if (checked) next.add(value);
   else next.delete(value);
   preferences.value = [...next];
+}
+
+/** On repart d'un champ vide : l'adresse actuelle reste affichée au-dessus. */
+function ouvrirAdresse() {
+  adresseTexte.value = '';
+  adresseChoisie.value = null;
+  adresseOpen.value = true;
+}
+
+/**
+ * L'adresse choisie porte le quartier, la ville et les coordonnées : c'est ce trio
+ * qui alimente les distances des tablées et la météo du quartier.
+ */
+async function saveAdresse() {
+  const adresse = adresseChoisie.value ?? (await chercherUne(adresseTexte.value));
+  if (!adresse) {
+    toast.error('Adresse introuvable. Précise la rue ou la ville.');
+    return;
+  }
+  savingAdresse.value = true;
+  try {
+    await meStore.save({
+      neighborhood: adresse.quartier,
+      city: adresse.ville,
+      coordinates: { latitude: adresse.latitude, longitude: adresse.longitude },
+    });
+    toast.success('Adresse mise à jour.');
+    adresseOpen.value = false;
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "La mise à jour a échoué.");
+  } finally {
+    savingAdresse.value = false;
+  }
 }
 
 async function savePreferences() {
@@ -113,6 +155,21 @@ onMounted(async () => {
           <button
             type="button"
             class="flex items-center gap-3 border-b border-ardoise/10 py-4 text-left transition-colors hover:bg-ardoise/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
+            @click="ouvrirAdresse"
+          >
+            <MapPin class="size-5 shrink-0 text-sauge" :stroke-width="1.75" />
+            <span class="flex-1">
+              <span class="block text-body-md text-ardoise">Mon adresse</span>
+              <span class="block text-micro text-secondaire">
+                {{ profile.neighborhood }} · {{ profile.city }}
+              </span>
+            </span>
+            <ChevronRight class="size-4 text-secondaire" />
+          </button>
+
+          <button
+            type="button"
+            class="flex items-center gap-3 border-b border-ardoise/10 py-4 text-left transition-colors hover:bg-ardoise/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
             @click="preferencesOpen = true"
           >
             <Leaf class="size-5 shrink-0 text-sauge" :stroke-width="1.75" />
@@ -155,6 +212,47 @@ onMounted(async () => {
         <DrawerFooter class="app-pad pb-8">
           <Button size="lg" class="w-full" :disabled="saving" @click="savePreferences">
             {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+
+    <Drawer v-model:open="adresseOpen">
+      <DrawerContent class="bg-creme">
+        <DrawerHeader class="app-pad text-left">
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Mon adresse</DrawerTitle>
+          <DrawerDescription class="text-body-sm text-secondaire">
+            Elle sert à calculer les distances des tablées et la météo de ton quartier.
+          </DrawerDescription>
+        </DrawerHeader>
+
+        <div class="app-pad flex flex-col gap-4 pb-2">
+          <p class="text-body-sm text-secondaire">
+            Adresse actuelle :
+            <span class="text-ardoise">{{ profile?.neighborhood }} · {{ profile?.city }}</span>
+          </p>
+          <Field>
+            <FieldLabel for="profile-address">Nouvelle adresse</FieldLabel>
+            <AddressField
+              id="profile-address"
+              v-model="adresseTexte"
+              placeholder="12 rue de la République, Lyon"
+              @select="adresseChoisie = $event"
+            />
+            <FieldDescription>
+              Choisis une suggestion : le quartier, la ville et les coordonnées suivent.
+            </FieldDescription>
+          </Field>
+        </div>
+
+        <DrawerFooter class="app-pad pb-8">
+          <Button
+            size="lg"
+            class="w-full"
+            :disabled="savingAdresse || adresseTexte.trim().length < 3"
+            @click="saveAdresse"
+          >
+            {{ savingAdresse ? 'Enregistrement…' : "Mettre à jour l'adresse" }}
           </Button>
         </DrawerFooter>
       </DrawerContent>
