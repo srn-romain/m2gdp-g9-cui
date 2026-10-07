@@ -8,6 +8,25 @@ import { guestConfirmedCount, isPassed, newId, nowIso, toTableJson, type TableRo
 export const tablesRoutes = new Hono<{ Bindings: Env }>();
 
 const DIETS = ['VEGETARIAN', 'VEGAN', 'NO_PORK', 'NO_GLUTEN', 'NO_LACTOSE', 'HALAL', 'KOSHER', 'NO_NUTS'];
+const UNITES = ['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION'];
+
+/** Ingrédients proposés par l'hôte : liste de courses, bornée et normalisée. */
+function parseWanted(input: unknown): Array<{ label: string; quantity: number | null; unit: string | null }> | null {
+  if (input == null) return [];
+  if (!Array.isArray(input) || input.length > 20) return null;
+  const items: Array<{ label: string; quantity: number | null; unit: string | null }> = [];
+  for (const brut of input) {
+    const o = brut as Record<string, unknown>;
+    const label = typeof o?.['label'] === 'string' ? o['label'].trim() : '';
+    if (!label || label.length > 120) return null;
+    const quantity = o?.['quantity'] == null ? null : Number(o['quantity']);
+    if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) return null;
+    const unit = o?.['unit'] == null ? null : String(o['unit']);
+    if (unit != null && !UNITES.includes(unit)) return null;
+    items.push({ label, quantity, unit });
+  }
+  return items;
+}
 
 function havKm(a: number, b: number, c2: number, d: number) {
   const R = 6371, t = Math.PI / 180;
@@ -79,16 +98,18 @@ tablesRoutes.post('/', async (c) => {
   if (typeof co?.latitude !== 'number' || typeof co?.longitude !== 'number') return apiError('VALIDATION_ERROR', 'coordinates invalides.', { field: 'location.coordinates' });
   const vis = (b['visibility'] as string) ?? 'PUBLIC';
   if (!['PUBLIC', 'PRIVATE'].includes(vis)) return apiError('VALIDATION_ERROR', 'visibility invalide.');
+  const wanted = parseWanted(b['wantedContributions']);
+  if (!wanted) return apiError('VALIDATION_ERROR', 'wantedContributions invalide.', { field: 'wantedContributions' });
   const id = newId(), now = nowIso(), partId = newId();
   // R1 : tablee + participation HOST CONFIRMED dans la meme transaction.
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO tables (id, hostId, dishName, description, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, neighborhood, city, postalCode, latitude, longitude, addressLine, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tables (id, hostId, dishName, description, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(id, auth.userId, (dish as string).trim(), (b['description'] as string) ?? null, new Date(String(b['startsAt'])).toISOString(),
       Number(b['durationMinutes'] ?? 120), seats, vis, b['isVegetarian'] ? 1 : 0, b['hasAllergenNotice'] ? 1 : 0,
       loc['neighborhood'], loc['city'], (loc['postalCode'] as string) ?? null,
-      co.latitude, co.longitude, (loc['addressLine'] as string) ?? null, now),
+      co.latitude, co.longitude, (loc['addressLine'] as string) ?? null, JSON.stringify(wanted), now),
     c.env.DB.prepare(
       "INSERT INTO participations (id, tableId, userId, role, status, joinedAt) VALUES (?, ?, ?, 'HOST', 'CONFIRMED', ?)",
     ).bind(partId, id, auth.userId, now),

@@ -28,6 +28,24 @@ export interface TableRow {
   visibility: string; status: string; isVegetarian: number; hasAllergenNotice: number;
   neighborhood: string; city: string; postalCode: string | null;
   latitude: number; longitude: number; addressLine: string | null; createdAt: string;
+  wantedContributions: string | null;
+}
+
+/** Ingrédient proposé par l'hôte : liste de courses, rattachée à personne. */
+export interface WantedContribution {
+  label: string;
+  quantity: number | null;
+  unit: string | null;
+}
+
+export function parseWantedContributions(raw: unknown): WantedContribution[] {
+  if (typeof raw !== 'string' || !raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as WantedContribution[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 interface UserRow {
@@ -134,6 +152,7 @@ export async function toTableJson(db: D1Database, row: TableRow, viewerUserId: s
       ...(exact && row.addressLine ? { addressLine: row.addressLine } : {}),
     },
     contributions: await tableContributions(db, row.id),
+    wantedContributions: parseWantedContributions(row.wantedContributions),
     myParticipation: viewerUserId ? await myParticipation(db, row.id, viewerUserId) : null,
     distanceMeters: null,
     createdAt: row.createdAt,

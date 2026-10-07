@@ -882,6 +882,29 @@ components:
         unit:
           $ref: '#/components/schemas/QuantityUnit'
 
+    WantedContribution:
+      type: object
+      description: |
+        Ingrédient proposé par l'hôte pour sa tablée. À la différence d'une
+        `Contribution`, il n'est rattaché à aucune participation : c'est une liste
+        de courses indicative, que les invités s'approprient en rejoignant la tablée.
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: "Courgettes"
+        quantity:
+          type: [number, 'null']
+          format: double
+          exclusiveMinimum: 0
+          example: 500
+        unit:
+          oneOf:
+            - $ref: '#/components/schemas/QuantityUnit'
+            - type: 'null'
+
     Participation:
       type: object
       required: [id, tableId, role, status, joinedAt]
@@ -999,6 +1022,12 @@ components:
           description: "Alimente la ligne « Ce que chacun apporte »."
           items:
             $ref: '#/components/schemas/Contribution'
+        wantedContributions:
+          type: array
+          readOnly: true
+          description: "Ingrédients proposés par l'hôte, à apporter par les invités."
+          items:
+            $ref: '#/components/schemas/WantedContribution'
         myParticipation:
           oneOf:
             - $ref: '#/components/schemas/Participation'
@@ -1050,6 +1079,14 @@ components:
         hasAllergenNotice:
           type: boolean
           default: false
+        wantedContributions:
+          type: array
+          maxItems: 20
+          description: |
+            Ingrédients que l'hôte propose d'apporter. Liste indicative : elle
+            n'affecte personne, les invités s'en saisissent en rejoignant.
+          items:
+            $ref: '#/components/schemas/WantedContribution'
         location:
           allOf:
             - $ref: '#/components/schemas/Location'
