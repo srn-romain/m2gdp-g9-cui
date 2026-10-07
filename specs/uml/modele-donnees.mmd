@@ -1,0 +1,82 @@
+classDiagram
+    direction LR
+
+    class User {
+        +UUID id
+        +String email
+        +String firstName
+        +String lastName
+        +String neighborhood
+        +String city
+        +Coordinates coordinates
+        +List~DietaryPreference~ dietaryPreferences
+        +String avatarUrl
+        +AccountStatus status
+        +Instant createdAt
+        +Instant updatedAt
+    }
+
+    class Table {
+        +UUID id
+        +UUID hostId
+        +String dishName
+        +String description
+        +Instant startsAt
+        +int durationMinutes
+        +int seatsTotal
+        +int seatsAvailable
+        +Visibility visibility
+        +TableStatus status
+        +boolean isVegetarian
+        +boolean hasAllergenNotice
+        +Location location
+        +Instant createdAt
+    }
+
+    class Location {
+        <<ValueObject>>
+        +String neighborhood
+        +String city
+        +String postalCode
+        +double latitude
+        +double longitude
+        +String addressLine
+    }
+
+    class Participation {
+        +UUID id
+        +UUID tableId
+        +UUID userId
+        +ParticipationRole role
+        +ParticipationStatus status
+        +Instant joinedAt
+    }
+
+    class Contribution {
+        +UUID id
+        +UUID participationId
+        +String label
+        +Decimal quantity
+        +QuantityUnit unit
+        +ContributionCategory category
+        +ContributionStatus status
+    }
+
+    class Message {
+        +UUID id
+        +UUID tableId
+        +UUID authorId
+        +MessageType type
+        +String text
+        +String audioUrl
+        +int durationSeconds
+        +Instant sentAt
+    }
+
+    User "1" --> "0..*" Table : héberge
+    User "1" --> "0..*" Participation : participe
+    Table "1" *-- "1..*" Participation : rassemble
+    Participation "1" *-- "0..1" Contribution : déclare
+    Table "1" *-- "0..*" Message : contient
+    User "1" --> "0..*" Message : écrit
+    Table "1" --> "1" Location : se tient à

@@ -1,0 +1,177 @@
+/* La Bonne Tablée — jetons de typographie et de couleur
+   Dérivé de design-system/tokens/tokens.json. */
+
+:root {
+  /* --- Polices ---------------------------------------------------------- */
+  --lbt-police-titres: "Chewy", "Comic Sans MS", cursive;
+  --lbt-police-texte: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* --- Couleurs de la charte -------------------------------------------- */
+  --lbt-terracotta: #db5a3b;
+  --lbt-creme: #faf7f2;
+  --lbt-sauge: #5b8266;
+  --lbt-ardoise: #2b2b2b;
+
+  /* --- Extension (à valider) -------------------------------------------- */
+  --lbt-sauge-fonce: #3f5a48;
+
+  /* --- Couleurs de texte dérivées --------------------------------------- */
+  --lbt-texte-principal: var(--lbt-ardoise);
+  --lbt-texte-secondaire: rgba(43, 43, 43, 0.7);
+  --lbt-texte-sur-accent: var(--lbt-creme);
+
+  /* --- Fond ------------------------------------------------------------- */
+  --lbt-fond: var(--lbt-creme);
+}
+
+/* --- Titres, Chewy, graisse 400 uniquement ------------------------------ */
+
+.text-display-xl {
+  font-family: var(--lbt-police-titres);
+  font-weight: 400;
+  font-size: 2rem;          /* 32px */
+  line-height: 2.375rem;    /* 38px */
+  letter-spacing: -0.5px;
+}
+
+.text-display-lg {
+  font-family: var(--lbt-police-titres);
+  font-weight: 400;
+  font-size: 1.75rem;       /* 28px */
+  line-height: 2.125rem;    /* 34px */
+  letter-spacing: -0.4px;
+}
+
+.text-title-lg {
+  font-family: var(--lbt-police-titres);
+  font-weight: 400;
+  font-size: 1.5rem;        /* 24px */
+  line-height: 1.875rem;    /* 30px */
+  letter-spacing: -0.3px;
+}
+
+.text-title-md {
+  font-family: var(--lbt-police-titres);
+  font-weight: 400;
+  font-size: 1.25rem;       /* 20px */
+  line-height: 1.625rem;    /* 26px */
+  letter-spacing: -0.2px;
+}
+
+.text-title-sm {
+  font-family: var(--lbt-police-titres);
+  font-weight: 400;
+  font-size: 1.125rem;      /* 18px */
+  line-height: 1.5rem;      /* 24px */
+  letter-spacing: -0.2px;
+}
+
+/* --- Texte et interface, DM Sans, 400 / 500 / 700 ----------------------- */
+
+.text-body-lg {
+  font-family: var(--lbt-police-texte);
+  font-weight: 400;
+  font-size: 1.0625rem;     /* 17px */
+  line-height: 1.5625rem;   /* 25px */
+  letter-spacing: -0.2px;
+}
+
+.text-body-lg-strong {
+  font-family: var(--lbt-police-texte);
+  font-weight: 700;
+  font-size: 1.0625rem;     /* 17px */
+  line-height: 1.5625rem;   /* 25px */
+  letter-spacing: -0.2px;
+}
+
+.text-body-md {
+  font-family: var(--lbt-police-texte);
+  font-weight: 400;
+  font-size: 0.9375rem;     /* 15px */
+  line-height: 1.375rem;    /* 22px */
+  letter-spacing: 0;
+}
+
+.text-body-sm {
+  font-family: var(--lbt-police-texte);
+  font-weight: 400;
+  font-size: 0.875rem;      /* 14px */
+  line-height: 1.25rem;     /* 20px */
+  letter-spacing: 0;
+}
+
+.text-label-md {
+  font-family: var(--lbt-police-texte);
+  font-weight: 500;
+  font-size: 0.9375rem;     /* 15px */
+  line-height: 1.25rem;     /* 20px */
+  letter-spacing: 0;
+}
+
+.text-label-sm {
+  font-family: var(--lbt-police-texte);
+  font-weight: 500;
+  font-size: 0.8125rem;     /* 13px */
+  line-height: 1.125rem;    /* 18px */
+  letter-spacing: 0.1px;
+}
+
+.text-button-lg {
+  font-family: var(--lbt-police-texte);
+  font-weight: 700;
+  font-size: 1.125rem;      /* 18px */
+  line-height: 1.5rem;      /* 24px */
+  letter-spacing: 0;
+}
+
+.text-button-md {
+  font-family: var(--lbt-police-texte);
+  font-weight: 500;
+  font-size: 1rem;          /* 16px */
+  line-height: 1.375rem;    /* 22px */
+  letter-spacing: 0;
+}
+
+.text-nav-label {
+  font-family: var(--lbt-police-texte);
+  font-weight: 500;
+  font-size: 0.75rem;       /* 12px */
+  line-height: 1rem;        /* 16px */
+  letter-spacing: 0.1px;
+}
+
+.text-micro {
+  font-family: var(--lbt-police-texte);
+  font-weight: 400;
+  font-size: 0.75rem;       /* 12px */
+  line-height: 1rem;        /* 16px */
+  letter-spacing: 0.1px;
+}
+
+/* --- Couleurs sémantiques ---------------------------------------------- */
+
+.text-titre {
+  color: var(--lbt-sauge);
+}
+
+.text-titre-petit {
+  color: var(--lbt-sauge-fonce);
+}
+
+.text-principal {
+  color: var(--lbt-texte-principal);
+}
+
+.text-secondaire {
+  color: var(--lbt-texte-secondaire);
+}
+
+/* --- Base optionnelle ---------------------------------------------------
+   Pose le fond crème et la police d'interface sur le document.
+   À retirer si le projet applique déjà son propre reset. */
+
+body {
+  background: var(--lbt-fond);
+  color: var(--lbt-texte-principal);
+  font-family: var(--lbt-police-texte);
+}

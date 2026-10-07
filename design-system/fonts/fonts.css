@@ -1,0 +1,62 @@
+/* La Bonne Tablée — polices.
+   Chewy et DM Sans sont des Google Fonts sous licence SIL Open Font License 1.1,
+   usage commercial autorisé. Deux stratégies au choix. */
+
+/* ---------------------------------------------------------------------------
+   Option A, CDN Google Fonts, la plus rapide à mettre en place.
+
+   À placer dans le <head>, avant les feuilles de style :
+
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Chewy&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+
+   Équivalent en CSS, à placer en tête de fichier :
+
+   @import url("https://fonts.googleapis.com/css2?family=Chewy&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap");
+   --------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------
+   Option B, auto-hébergement. Aucune requête tierce, fonctionne hors ligne.
+   Télécharger les fichiers .woff2 puis décommenter le bloc ci-dessous.
+
+   Arborescence attendue :
+     /fonts/chewy/Chewy-Regular.woff2
+     /fonts/dm-sans/DMSans-Regular.woff2
+     /fonts/dm-sans/DMSans-Medium.woff2
+     /fonts/dm-sans/DMSans-Bold.woff2
+   --------------------------------------------------------------------------- */
+
+/*
+@font-face {
+  font-family: "Chewy";
+  src: url("/fonts/chewy/Chewy-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/dm-sans/DMSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/dm-sans/DMSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/dm-sans/DMSans-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+*/

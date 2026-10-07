@@ -1,0 +1,1138 @@
+openapi: 3.1.0
+
+info:
+  title: La Bonne Tablée — API
+  version: 1.0.0
+  summary: "Partage de repas entre voisins, scénario minimal."
+  description: |
+    API du parcours minimal : un utilisateur se connecte par lien magique, complète son
+    profil, cherche une tablée près de chez lui, choisit ce qu'il apporte, la rejoint, puis
+    échange avec le groupe.
+
+    Conventions :
+
+    - Toutes les listes sont paginées et renvoient `{ data, pagination }`.
+    - Toutes les erreurs renvoient `{ error: { code, message, details } }`.
+    - Les identifiants sont des UUID v4, les horodatages des Instant ISO 8601 en UTC.
+    - Les énumérations sont en UPPER_SNAKE, les champs en camelCase.
+    - Les identifiants sont en anglais, les libellés affichés restent en français.
+
+    Hors périmètre de cette version : avis et notes, recettes, favoris, notifications,
+    météo, envoi de médias, gestion d'une tablée par son hôte.
+  license:
+    name: Projet étudiant — usage interne
+
+servers:
+  - url: https://api.labonnetablee.fr/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Développement local
+
+tags:
+  - name: Authentification
+    description: "Connexion sans mot de passe, par lien magique envoyé par e-mail."
+  - name: Profil
+    description: "Profil de l'utilisateur connecté."
+  - name: Tablées
+    description: "Recherche, consultation et création de tablées."
+  - name: Participations
+    description: "Rejoindre ou quitter une tablée, avec la contribution associée."
+  - name: Messages
+    description: "Fil de discussion d'une tablée."
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /auth/magic-links:
+    post:
+      tags: [Authentification]
+      operationId: requestMagicLink
+      summary: Envoyer un lien de connexion
+      description: |
+        Envoie un lien de connexion à usage unique à l'adresse indiquée. Répond toujours
+        `202` pour ne pas révéler si une adresse est connue.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkRequest'
+      responses:
+        '202':
+          description: "Demande acceptée. L'e-mail part si l'adresse existe."
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/sessions:
+    post:
+      tags: [Authentification]
+      operationId: createSession
+      summary: Échanger un jeton de lien magique contre une session
+      description: |
+        Vérifie le jeton reçu par e-mail et renvoie les jetons d'accès. Le jeton de lien
+        magique est à usage unique et expire au bout de 15 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  description: "Jeton reçu par e-mail."
+                  example: "ml_9f2c41ab7d"
+      responses:
+        '201':
+          description: Session créée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /me:
+    get:
+      tags: [Profil]
+      operationId: getMe
+      summary: Lire son profil
+      responses:
+        '200':
+          description: Profil de l'utilisateur connecté.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    patch:
+      tags: [Profil]
+      operationId: updateMe
+      summary: Mettre à jour son profil
+      description: |
+        Mise à jour partielle : seuls les champs fournis sont modifiés. Utilisé aussi par
+        l'onboarding, pour renseigner prénom, nom, quartier et préférences alimentaires.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Profil mis à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /me/tables:
+    get:
+      tags: [Tablées]
+      operationId: listMyTables
+      summary: Lister ses tablées
+      description: |
+        Alimente l'accueil. `upcoming` correspond à « À venir », `past` à « Passées ».
+        Chaque tablée contient `myParticipation`, la participation de l'appelant.
+      parameters:
+        - $ref: '#/components/parameters/Scope'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Tablées de l'utilisateur connecté.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TablePage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /tables:
+    get:
+      tags: [Tablées]
+      operationId: listTables
+      summary: Rechercher des tablées
+      description: |
+        Alimente « Explorer ». Les résultats sont triés par distance par défaut. Le
+        paramètre `query` cherche dans le nom du plat et le quartier.
+      parameters:
+        - $ref: '#/components/parameters/Latitude'
+        - $ref: '#/components/parameters/Longitude'
+        - $ref: '#/components/parameters/RadiusKm'
+        - $ref: '#/components/parameters/StartsAfter'
+        - $ref: '#/components/parameters/StartsBefore'
+        - $ref: '#/components/parameters/Dietary'
+        - $ref: '#/components/parameters/VegetarianOnly'
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Tablées correspondant aux filtres.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TablePage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Tablées]
+      operationId: createTable
+      summary: Créer une tablée
+      description: |
+        Correspond à l'écran « Créer une tablée ». L'appelant devient hôte : une
+        participation `HOST` confirmée est créée dans la même transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableCreate'
+      responses:
+        '201':
+          description: Tablée créée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tables/{tableId}:
+    get:
+      tags: [Tablées]
+      operationId: getTable
+      summary: Consulter une tablée
+      description: |
+        Alimente la fiche « Gratin dauphinois chez Léonie ». L'adresse exacte n'est
+        renseignée que si l'appelant est l'hôte ou un participant confirmé.
+      parameters:
+        - $ref: '#/components/parameters/TableId'
+      responses:
+        '200':
+          description: Détail de la tablée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tables/{tableId}/participations:
+    post:
+      tags: [Participations]
+      operationId: joinTable
+      summary: Rejoindre une tablée
+      description: |
+        Correspond à « Votre contribution » puis à « C'est confirmé ! ». Crée la
+        participation confirmée et sa contribution en une seule opération. L'appel peut
+        être rejoué sans risque si `Idempotency-Key` est fourni.
+      parameters:
+        - $ref: '#/components/parameters/TableId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipationCreate'
+      responses:
+        '201':
+          description: Participation confirmée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            Conflit : la tablée est complète (`TABLE_FULL`), fermée (`TABLE_CLOSED`),
+            déjà passée (`TABLE_PASSED`) ou l'appelant participe déjà
+            (`ALREADY_PARTICIPATING`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tables/{tableId}/participations/me:
+    delete:
+      tags: [Participations]
+      operationId: leaveTable
+      summary: Quitter une tablée
+      description: |
+        Annule la participation de l'appelant et, par cascade, sa contribution. L'hôte ne
+        peut pas quitter sa propre tablée, il doit l'annuler.
+      parameters:
+        - $ref: '#/components/parameters/TableId'
+      responses:
+        '204':
+          description: Participation annulée. Aucun contenu renvoyé.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: "L'appelant est l'hôte de la tablée (`HOST_CANNOT_LEAVE`)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tables/{tableId}/messages:
+    get:
+      tags: [Messages]
+      operationId: listMessages
+      summary: Lire le fil d'une tablée
+      description: |
+        Messages triés du plus récent au plus ancien. Réservé à l'hôte et aux participants
+        confirmés.
+      parameters:
+        - $ref: '#/components/parameters/TableId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Fil de discussion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Messages]
+      operationId: postMessage
+      summary: Écrire dans le fil d'une tablée
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Message créé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Jeton d'accès renvoyé par POST /auth/sessions, valable 1 heure."
+
+  parameters:
+    TableId:
+      name: tableId
+      in: path
+      required: true
+      description: "Identifiant de la tablée."
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      description: "Numéro de page, à partir de 1."
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      description: "Nombre d'éléments par page."
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Scope:
+      name: scope
+      in: query
+      description: "`upcoming` pour « À venir », `past` pour « Passées »."
+      schema:
+        type: string
+        enum: [upcoming, past, all]
+        default: upcoming
+    Latitude:
+      name: lat
+      in: query
+      description: "Latitude du point de recherche. Obligatoire avec `lng`."
+      schema:
+        type: number
+        format: double
+        minimum: -90
+        maximum: 90
+      example: 45.7485
+    Longitude:
+      name: lng
+      in: query
+      description: "Longitude du point de recherche. Obligatoire avec `lat`."
+      schema:
+        type: number
+        format: double
+        minimum: -180
+        maximum: 180
+      example: 4.8467
+    RadiusKm:
+      name: radiusKm
+      in: query
+      description: "Rayon de recherche en kilomètres."
+      schema:
+        type: number
+        format: double
+        minimum: 0.5
+        maximum: 50
+        default: 5
+    StartsAfter:
+      name: startsAfter
+      in: query
+      description: "Ne renvoie que les tablées qui commencent à partir de cet instant."
+      schema:
+        type: string
+        format: date-time
+    StartsBefore:
+      name: startsBefore
+      in: query
+      description: "Ne renvoie que les tablées qui commencent avant cet instant."
+      schema:
+        type: string
+        format: date-time
+    Dietary:
+      name: dietary
+      in: query
+      description: "Filtre sur un régime. Répéter le paramètre pour cumuler les filtres."
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/DietaryPreference'
+      style: form
+      explode: true
+    VegetarianOnly:
+      name: vegetarianOnly
+      in: query
+      description: "Raccourci pour le filtre « Végétarien » de la maquette."
+      schema:
+        type: boolean
+        default: false
+    Query:
+      name: query
+      in: query
+      description: "Recherche libre sur le nom du plat et le quartier."
+      schema:
+        type: string
+        minLength: 2
+        maxLength: 80
+      example: gratin
+    SortBy:
+      name: sortBy
+      in: query
+      description: "Critère de tri des résultats."
+      schema:
+        type: string
+        enum: [distance, startsAt, seatsAvailable]
+        default: distance
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Clé d'idempotence, un UUID fourni par le client. Rejouer la requête avec la même
+        clé renvoie la participation déjà créée au lieu de renvoyer un conflit.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthenticated:
+      description: "Jeton absent, expiré ou invalide (`UNAUTHENTICATED`)."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: |
+        Authentifié mais non autorisé : la tablée est privée et l'appelant n'y participe
+        pas (`FORBIDDEN`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: "Ressource inexistante (`NOT_FOUND`)."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ValidationError:
+      description: "Données invalides (`VALIDATION_ERROR`), le détail indique les champs fautifs."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    RateLimited:
+      description: "Trop de demandes (`RATE_LIMITED`), réessayer plus tard."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  schemas:
+
+    ApiError:
+      type: object
+      description: "Enveloppe unique de toutes les erreurs de l'API."
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message:
+              type: string
+              description: "Message lisible, destiné aux journaux et au support."
+              example: "Cette tablée est complète."
+            details:
+              type: object
+              additionalProperties: true
+              description: "Contexte complémentaire, par exemple les champs invalides."
+              example:
+                field: seatsTotal
+
+    ErrorCode:
+      type: string
+      description: "Code d'erreur, stable : le client peut s'y fier, pas au message."
+      enum:
+        - VALIDATION_ERROR
+        - UNAUTHENTICATED
+        - FORBIDDEN
+        - NOT_FOUND
+        - TABLE_FULL
+        - TABLE_CLOSED
+        - TABLE_PASSED
+        - ALREADY_PARTICIPATING
+        - HOST_CANNOT_LEAVE
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+
+    Pagination:
+      type: object
+      required: [page, pageSize, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          example: 20
+        totalItems:
+          type: integer
+          minimum: 0
+          example: 12
+        totalPages:
+          type: integer
+          minimum: 0
+          example: 1
+
+    Coordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 45.7485
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: 4.8467
+
+    Location:
+      type: object
+      description: |
+        Objet-valeur embarqué. `addressLine` reste nul tant que l'appelant n'est pas
+        l'hôte ou un participant confirmé.
+      required: [neighborhood, city, coordinates]
+      properties:
+        neighborhood:
+          type: string
+          maxLength: 80
+          example: "Lyon 7e"
+        city:
+          type: string
+          maxLength: 80
+          example: "Lyon"
+        postalCode:
+          type: [string, 'null']
+          maxLength: 10
+          example: "69007"
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        addressLine:
+          type: [string, 'null']
+          maxLength: 200
+          description: "Adresse exacte, réservée aux participants confirmés."
+          example: "12 rue de Marseille"
+
+    Rating:
+      type: object
+      description: "Moyenne des avis reçus. Lecture seule, alimentée hors scénario minimal."
+      required: [average, count]
+      properties:
+        average:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 5
+          example: 4.9
+        count:
+          type: integer
+          minimum: 0
+          example: 18
+
+    DietaryPreference:
+      type: string
+      enum:
+        - VEGETARIAN
+        - VEGAN
+        - NO_PORK
+        - NO_GLUTEN
+        - NO_LACTOSE
+        - HALAL
+        - KOSHER
+        - NO_NUTS
+
+    AccountStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED]
+
+    Visibility:
+      type: string
+      enum: [PUBLIC, PRIVATE]
+
+    TableStatus:
+      type: string
+      enum: [OPEN, FULL, CANCELLED, PASSED]
+
+    ParticipationRole:
+      type: string
+      enum: [HOST, GUEST]
+
+    ParticipationStatus:
+      type: string
+      enum: [CONFIRMED, CANCELLED, ATTENDED, NO_SHOW]
+
+    ContributionCategory:
+      type: string
+      description: "`NONE` correspond au choix « Je ne fais pas les courses »."
+      enum: [APPETIZER, MAIN, DESSERT, DRINK, INGREDIENT, NONE]
+
+    ContributionStatus:
+      type: string
+      enum: [PROPOSED, CONFIRMED, BROUGHT]
+
+    QuantityUnit:
+      type: string
+      enum: [KG, G, L, CL, UNIT, PORTION]
+
+    MessageType:
+      type: string
+      enum: [TEXT, AUDIO, SYSTEM]
+
+    UserSummary:
+      type: object
+      description: "Vue publique d'un utilisateur. L'adresse e-mail n'y figure jamais."
+      required: [id, firstName, neighborhood, city]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "0f4a2c19-7c3e-4f52-9a11-2b7c8d6e0011"
+        firstName:
+          type: string
+          maxLength: 80
+          example: "Léonie"
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+          example: "https://cdn.labonnetablee.fr/avatars/leonie.jpg"
+        neighborhood:
+          type: string
+          example: "Lyon 7e"
+        city:
+          type: string
+          example: "Lyon"
+        rating:
+          $ref: '#/components/schemas/Rating'
+
+    User:
+      type: object
+      description: "Profil complet, renvoyé uniquement pour l'utilisateur connecté."
+      required: [id, email, firstName, lastName, neighborhood, city, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "6d3b1a84-2f70-4d61-9c8a-51e2f0b73a55"
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: "bernard.martin@example.fr"
+        firstName:
+          type: string
+          maxLength: 80
+          example: "Bernard"
+        lastName:
+          type: string
+          maxLength: 80
+          example: "Martin"
+        neighborhood:
+          type: string
+          maxLength: 80
+          example: "Lyon 7e"
+        city:
+          type: string
+          maxLength: 80
+          example: "Lyon"
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        dietaryPreferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/DietaryPreference'
+          example: [VEGETARIAN, NO_PORK]
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+        rating:
+          $ref: '#/components/schemas/Rating'
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-02T09:14:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-04-11T18:02:31Z"
+
+    UserUpdate:
+      type: object
+      description: "Mise à jour partielle. Un champ absent n'est pas modifié."
+      minProperties: 1
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        neighborhood:
+          type: string
+          minLength: 1
+          maxLength: 80
+        city:
+          type: string
+          minLength: 1
+          maxLength: 80
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        dietaryPreferences:
+          type: array
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/DietaryPreference'
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+
+    MagicLinkRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: "bernard.martin@example.fr"
+
+    Session:
+      type: object
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        tokenType:
+          type: string
+          enum: [Bearer]
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          description: "Durée de validité du jeton, en secondes."
+          example: 3600
+        user:
+          $ref: '#/components/schemas/User'
+
+    Contribution:
+      type: object
+      description: "Ce que chacun apporte, rattaché à une participation."
+      required: [id, label, category, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "b21f7e40-5d88-4c0a-9f31-77c6a0e5b2d9"
+        label:
+          type: string
+          maxLength: 120
+          example: "Pommes de terre"
+        quantity:
+          type: [number, 'null']
+          format: double
+          minimum: 0
+          example: 1
+        unit:
+          oneOf:
+            - $ref: '#/components/schemas/QuantityUnit'
+            - type: 'null'
+        category:
+          $ref: '#/components/schemas/ContributionCategory'
+        status:
+          $ref: '#/components/schemas/ContributionStatus'
+        participant:
+          $ref: '#/components/schemas/UserSummary'
+
+    ContributionInput:
+      type: object
+      description: |
+        Contribution fournie par le participant. Avec `category = NONE`, `quantity` et
+        `unit` doivent être omis : c'est le choix « Je ne fais pas les courses ».
+      required: [label, category]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: "Pommes de terre"
+        category:
+          $ref: '#/components/schemas/ContributionCategory'
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          example: 1
+        unit:
+          $ref: '#/components/schemas/QuantityUnit'
+
+    Participation:
+      type: object
+      required: [id, tableId, role, status, joinedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "c7d2a3f1-6b09-4a2e-8d54-1f0e9b3c7a22"
+        tableId:
+          type: string
+          format: uuid
+          example: "5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10"
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        role:
+          $ref: '#/components/schemas/ParticipationRole'
+        status:
+          $ref: '#/components/schemas/ParticipationStatus'
+        joinedAt:
+          type: string
+          format: date-time
+          example: "2026-04-09T20:15:00Z"
+        contribution:
+          oneOf:
+            - $ref: '#/components/schemas/Contribution'
+            - type: 'null'
+
+    ParticipationCreate:
+      type: object
+      required: [contribution]
+      properties:
+        contribution:
+          $ref: '#/components/schemas/ContributionInput'
+
+    Table:
+      type: object
+      description: |
+        Un seul et même schéma pour la liste et pour le détail, afin que le client
+        n'ait jamais à traiter deux formes différentes.
+      required:
+        - id
+        - title
+        - dishName
+        - startsAt
+        - durationMinutes
+        - seatsTotal
+        - seatsAvailable
+        - visibility
+        - status
+        - isVegetarian
+        - hasAllergenNotice
+        - host
+        - location
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10"
+        title:
+          type: string
+          readOnly: true
+          description: |
+            Titre affiché, dérivé côté serveur : « {dishName} chez {host.firstName} ».
+            Jamais stocké, donc jamais désynchronisé.
+          example: "Gratin chez Léonie"
+        dishName:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: "Gratin dauphinois"
+        description:
+          type: [string, 'null']
+          maxLength: 600
+          example: "Un gratin maison à partager entre voisins."
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-04-12T12:30:00Z"
+        durationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 720
+          default: 120
+          example: 120
+        seatsTotal:
+          type: integer
+          minimum: 1
+          maximum: 30
+          description: "Places ouvertes aux invités. L'hôte n'est pas compté."
+          example: 4
+        seatsAvailable:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: "Dérivé : seatsTotal moins les participations confirmées hors hôte."
+          example: 3
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        status:
+          $ref: '#/components/schemas/TableStatus'
+        isVegetarian:
+          type: boolean
+          example: true
+        hasAllergenNotice:
+          type: boolean
+          example: true
+        host:
+          $ref: '#/components/schemas/UserSummary'
+        location:
+          $ref: '#/components/schemas/Location'
+        contributions:
+          type: array
+          readOnly: true
+          description: "Alimente la ligne « Ce que chacun apporte »."
+          items:
+            $ref: '#/components/schemas/Contribution'
+        myParticipation:
+          oneOf:
+            - $ref: '#/components/schemas/Participation'
+            - type: 'null'
+          description: "Participation de l'appelant, nulle s'il ne participe pas."
+        distanceMeters:
+          type: [integer, 'null']
+          readOnly: true
+          description: "Distance depuis le point de recherche fourni, nulle sinon."
+          example: 700
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-04-05T10:00:00Z"
+
+    TableCreate:
+      type: object
+      required: [dishName, startsAt, seatsTotal, location]
+      properties:
+        dishName:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: "Gratin dauphinois"
+        description:
+          type: string
+          maxLength: 600
+          example: "Un gratin maison à partager entre voisins."
+        startsAt:
+          type: string
+          format: date-time
+          description: "Doit être dans le futur."
+          example: "2026-04-12T12:30:00Z"
+        durationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 720
+          default: 120
+        seatsTotal:
+          type: integer
+          minimum: 1
+          maximum: 30
+          example: 4
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        isVegetarian:
+          type: boolean
+          default: false
+        hasAllergenNotice:
+          type: boolean
+          default: false
+        location:
+          allOf:
+            - $ref: '#/components/schemas/Location'
+          description: "Quartier et position. `addressLine` reste optionnelle."
+
+    Message:
+      type: object
+      required: [id, tableId, type, sentAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "e4b8c1a0-9d27-4f36-b1c8-3a5d0e7f9124"
+        tableId:
+          type: string
+          format: uuid
+          example: "5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10"
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        type:
+          $ref: '#/components/schemas/MessageType'
+        text:
+          type: [string, 'null']
+          maxLength: 2000
+          description: "Renseigné si `type = TEXT`."
+          example: "Je peux prendre 1 kg de pommes de terre."
+        audioUrl:
+          type: [string, 'null']
+          format: uri
+          description: "Renseigné si `type = AUDIO`."
+        durationSeconds:
+          type: [integer, 'null']
+          minimum: 0
+          description: "Renseigné si `type = AUDIO`."
+          example: 32
+        sentAt:
+          type: string
+          format: date-time
+          example: "2026-04-09T20:32:00Z"
+
+    MessageCreate:
+      type: object
+      required: [type]
+      description: |
+        `text` est obligatoire si `type = TEXT`, `audioUrl` s'il vaut `AUDIO`.
+        Le type `SYSTEM` est réservé au serveur.
+      properties:
+        type:
+          type: string
+          enum: [TEXT, AUDIO]
+          example: "TEXT"
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: "Je peux prendre 1 kg de pommes de terre."
+        audioUrl:
+          type: string
+          format: uri
+          description: "URL d'un média déjà envoyé. L'envoi de fichiers reste hors périmètre."
+        durationSeconds:
+          type: integer
+          minimum: 0
+          maximum: 300
+
+    TablePage:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Table'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    MessagePage:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        pagination:
+          $ref: '#/components/schemas/Pagination'

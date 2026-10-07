@@ -1,0 +1,157 @@
+# La Bonne Tablée — scénario minimal, de bout en bout.
+#
+# S'exécute avec l'extension REST Client de VS Code, ou le client HTTP de JetBrains.
+# Enchaîner les requêtes dans l'ordre : chaque réponse alimente la suivante.
+
+@baseUrl = http://localhost:8080/api/v1
+@email = bernard.martin@example.fr
+@magicToken = ml_9f2c41ab7d
+@accessToken = REPLACER_PAR_LE_JETON_RENVOYE
+@tableId = 5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10
+
+### 1. Demander un lien de connexion (écran « Bon retour ! »)
+# @name magicLink
+POST {{baseUrl}}/auth/magic-links
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### 2. Échanger le jeton du lien contre une session
+# @name session
+POST {{baseUrl}}/auth/sessions
+Content-Type: application/json
+
+{
+  "token": "{{magicToken}}"
+}
+
+### 3. Lire son profil (onboarding : prénom, nom, quartier, préférences)
+GET {{baseUrl}}/me
+Authorization: Bearer {{accessToken}}
+
+### 4. Compléter son profil
+PATCH {{baseUrl}}/me
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Bernard",
+  "lastName": "Martin",
+  "neighborhood": "Lyon 7e",
+  "city": "Lyon",
+  "coordinates": { "latitude": 45.7485, "longitude": 4.8467 },
+  "dietaryPreferences": ["VEGETARIAN", "NO_PORK"]
+}
+
+### 5. Mes tablées à venir (accueil, « À venir »)
+GET {{baseUrl}}/me/tables?scope=upcoming&page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### 6. Mes tablées passées (« Passées »)
+GET {{baseUrl}}/me/tables?scope=past&page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### 7. Explorer les tablées autour de moi, ce soir, végétarien
+GET {{baseUrl}}/tables?lat=45.7485&lng=4.8467&radiusKm=5&vegetarianOnly=true&startsAfter=2026-04-12T00:00:00Z&startsBefore=2026-04-13T00:00:00Z&sortBy=distance&page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### 8. Recherche libre
+GET {{baseUrl}}/tables?query=gratin&page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### 9. Consulter la fiche d'une tablée
+GET {{baseUrl}}/tables/{{tableId}}
+Authorization: Bearer {{accessToken}}
+
+### 10. Créer une tablée (écran « Créer une tablée »)
+# @name createTable
+POST {{baseUrl}}/tables
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "dishName": "Gratin dauphinois",
+  "description": "Un gratin maison à partager entre voisins.",
+  "startsAt": "2026-04-12T12:30:00Z",
+  "durationMinutes": 120,
+  "seatsTotal": 4,
+  "visibility": "PUBLIC",
+  "isVegetarian": true,
+  "hasAllergenNotice": true,
+  "location": {
+    "neighborhood": "Lyon 7e",
+    "city": "Lyon",
+    "postalCode": "69007",
+    "coordinates": { "latitude": 45.7485, "longitude": 4.8467 },
+    "addressLine": "12 rue de Marseille"
+  }
+}
+
+### 11. Rejoindre une tablée avec sa contribution (écran « Votre contribution »)
+# Réponse attendue : 201, ce qui produit l'écran « C'est confirmé ! ».
+POST {{baseUrl}}/tables/{{tableId}}/participations
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+Idempotency-Key: 8f14e45f-ea0a-4a1c-9c3b-0d5c2b7a9e11
+
+{
+  "contribution": {
+    "label": "Pommes de terre",
+    "category": "INGREDIENT",
+    "quantity": 1,
+    "unit": "KG"
+  }
+}
+
+### 11 bis. Cas « Je ne fais pas les courses »
+POST {{baseUrl}}/tables/{{tableId}}/participations
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "contribution": {
+    "label": "Je ne fais pas les courses",
+    "category": "NONE"
+  }
+}
+
+### 12. Se désinscrire
+DELETE {{baseUrl}}/tables/{{tableId}}/participations/me
+Authorization: Bearer {{accessToken}}
+
+### 13. Lire le fil de discussion
+GET {{baseUrl}}/tables/{{tableId}}/messages?page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### 14. Écrire dans le fil
+POST {{baseUrl}}/tables/{{tableId}}/messages
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "TEXT",
+  "text": "Je peux prendre 1 kg de pommes de terre."
+}
+
+### 14 bis. Message vocal
+POST {{baseUrl}}/tables/{{tableId}}/messages
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "AUDIO",
+  "audioUrl": "https://cdn.labonnetablee.fr/audio/msg-4212.m4a",
+  "durationSeconds": 32
+}
+
+### 15. Cas d'erreur : tablée complète
+# Réponse attendue : 409, code TABLE_FULL.
+POST {{baseUrl}}/tables/{{tableId}}/participations
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "contribution": { "label": "Salade verte", "category": "APPETIZER" }
+}
