@@ -7,6 +7,8 @@ import { guestConfirmedCount, isPassed, newId, nowIso, toTableJson, type TableRo
 
 export const tablesRoutes = new Hono<{ Bindings: Env }>();
 
+const DIETS = ['VEGETARIAN', 'VEGAN', 'NO_PORK', 'NO_GLUTEN', 'NO_LACTOSE', 'HALAL', 'KOSHER', 'NO_NUTS'];
+
 function havKm(a: number, b: number, c2: number, d: number) {
   const R = 6371, t = Math.PI / 180;
   const h = Math.sin(((c2 - a) * t) / 2) ** 2 + Math.cos(a * t) * Math.cos(c2 * t) * Math.sin(((d - b) * t) / 2) ** 2;
@@ -31,6 +33,11 @@ tablesRoutes.get('/', async (c) => {
   if (!['distance', 'startsAt', 'seatsAvailable'].includes(sortBy)) return apiError('VALIDATION_ERROR', 'sortBy invalide.');
   if (sortBy === 'distance' && lat == null) return apiError('VALIDATION_ERROR', 'sortBy=distance exige lat+lng.');
   const vegetarianOnly = url.searchParams.get('vegetarianOnly') === 'true';
+  // Paramètre `dietary` de l'OpenAPI (répétable). Seul le végétarien est stocké
+  // par tablée (colonne isVegetarian) : c'est le seul régime filtrable aujourd'hui.
+  const dietary = url.searchParams.getAll('dietary');
+  if (dietary.some((d) => !DIETS.includes(d))) return apiError('VALIDATION_ERROR', 'dietary invalide.', { field: 'dietary' });
+  const veutVegetarien = vegetarianOnly || dietary.includes('VEGETARIAN');
   const startsAfter = url.searchParams.get('startsAfter');
   const startsBefore = url.searchParams.get('startsBefore');
   const { page, pageSize } = parsePagination(url);
@@ -38,7 +45,7 @@ tablesRoutes.get('/', async (c) => {
   let items: Array<Record<string, unknown> & { _d?: number | null }> = [];
   for (const t of rows.results ?? []) {
     if (isPassed(t.startsAt, t.durationMinutes)) continue;
-    if (vegetarianOnly && !t.isVegetarian) continue;
+    if (veutVegetarien && !t.isVegetarian) continue;
     if (startsAfter && t.startsAt < startsAfter) continue;
     if (startsBefore && t.startsAt >= startsBefore) continue;
     if (q && !(t.dishName.toLowerCase().includes(q.toLowerCase()) || t.neighborhood.toLowerCase().includes(q.toLowerCase()))) continue;

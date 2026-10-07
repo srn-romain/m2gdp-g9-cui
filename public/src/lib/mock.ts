@@ -142,6 +142,48 @@ export const DEMO_UPCOMING = [DEMO_TABLE_GRATIN, DEMO_TABLE_RISOTTO];
 export const DEMO_PAST = [DEMO_TABLE_SOUPE];
 export const DEMO_ALL = [DEMO_TABLE_GRATIN, DEMO_TABLE_RISOTTO, DEMO_TABLE_SOUPE];
 
+/**
+ * Applique les filtres de l'explorateur à la démo (régime, rayon, créneau,
+ * recherche) : en mode démo, il n'y a pas de Worker pour les appliquer.
+ */
+export function demoQueryTables(params: {
+  radiusKm?: number;
+  startsAfter?: string;
+  startsBefore?: string;
+  dietary?: string[];
+  vegetarianOnly?: boolean;
+  query?: string;
+  sortBy?: 'distance' | 'startsAt' | 'seatsAvailable';
+} = {}): Table[] {
+  let list = [...DEMO_ALL];
+
+  const recherche = params.query?.trim().toLowerCase();
+  if (recherche) {
+    list = list.filter((t) =>
+      `${t.dishName} ${t.host?.firstName ?? ''}`.toLowerCase().includes(recherche),
+    );
+  }
+  if (params.startsAfter) list = list.filter((t) => t.startsAt >= params.startsAfter!);
+  if (params.startsBefore) list = list.filter((t) => t.startsAt <= params.startsBefore!);
+  // La démo ne porte que le drapeau végétarien : les autres régimes sont ignorés.
+  if (params.vegetarianOnly || params.dietary?.includes('VEGETARIAN')) {
+    list = list.filter((t) => t.isVegetarian);
+  }
+  if (params.radiusKm) {
+    const max = params.radiusKm * 1000;
+    list = list.filter((t) => t.distanceMeters == null || t.distanceMeters <= max);
+  }
+
+  if (params.sortBy === 'distance') {
+    list.sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
+  } else if (params.sortBy === 'seatsAvailable') {
+    list.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
+  } else {
+    list.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  }
+  return list;
+}
+
 export const DEMO_MESSAGES: Message[] = [
   {
     id: 'm-3',

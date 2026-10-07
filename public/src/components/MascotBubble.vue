@@ -8,6 +8,8 @@ withDefaults(
     size?: number;
     /** `row` : mascotte à gauche, bulle à droite. `stack` : bulle au-dessus. */
     layout?: 'row' | 'stack';
+    /** Illustration des assets à utiliser à la place de la mascotte vectorielle. */
+    image?: string;
   }>(),
   { pose: 'idle', size: 88, layout: 'row' },
 );
@@ -18,7 +20,14 @@ withDefaults(
     class="flex gap-3"
     :class="layout === 'stack' ? 'flex-col items-center text-center' : 'flex-row items-end'"
   >
-    <Mascot :pose="pose" :size="size" with-buddy />
+    <img
+      v-if="image"
+      :src="image"
+      alt=""
+      class="shrink-0 object-contain"
+      :style="{ width: `${size}px`, height: `${size}px` }"
+    />
+    <Mascot v-else :pose="pose" :size="size" with-buddy />
     <div
       class="relative max-w-[15rem] rounded-2xl border border-ardoise/10 bg-creme px-4 py-3 text-title-md font-titres text-sauge shadow-[0_2px_10px_rgba(43,43,43,.06)]"
     >

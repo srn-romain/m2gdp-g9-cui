@@ -22,7 +22,8 @@ function startOfDay(d: Date): number {
 export function formatDay(iso: string, now = new Date()): string {
   const d = new Date(iso);
   const delta = Math.round((startOfDay(d) - startOfDay(now)) / 86_400_000);
-  if (delta === 0) return "Aujourd'hui";
+  // Une tablée du soir se lit « Ce soir » plutôt que « Aujourd'hui ».
+  if (delta === 0) return d.getHours() >= 18 ? 'Ce soir' : "Aujourd'hui";
   if (delta === 1) return 'Demain';
   if (delta === -1) return 'Hier';
   // Dans la semaine qui vient, la maquette écrit le jour en entier (« Dimanche »).
@@ -111,6 +112,12 @@ export function formatStatus(status: TableStatus): string {
 export function formatSeats(available: number): string {
   if (available <= 0) return 'Plus de place';
   return available === 1 ? '1 place disponible' : `${available} places disponibles`;
+}
+
+/** Version courte pour les listes : « 2 places », « 1 place », « Complet ». */
+export function formatSeatsCourt(available: number): string {
+  if (available <= 0) return 'Complet';
+  return available === 1 ? '1 place' : `${available} places`;
 }
 
 /** « {dishName} chez {host.firstName} », jamais stocké. */

@@ -1,9 +1,24 @@
 <script setup lang="ts">
-import { MapPin, Search, SlidersHorizontal, X } from '@lucide/vue';
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Leaf,
+  List as ListIcon,
+  Map as MapIcon,
+  MapPin,
+  Search,
+  SlidersHorizontal,
+  Star,
+  Users,
+  X,
+} from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import illustration from '@/assets/bonjour.png';
 import AppBar from '@/components/AppBar.vue';
+import DishPhoto from '@/components/DishPhoto.vue';
+import LocationPill from '@/components/LocationPill.vue';
 import MascotBubble from '@/components/MascotBubble.vue';
-import TableCard from '@/components/TableCard.vue';
 import TableRow from '@/components/TableRow.vue';
 import TablesMap from '@/components/TablesMap.vue';
 import { Button } from '@/components/ui/button';
@@ -11,23 +26,35 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import { listTables } from '@/lib/api';
-import { tableTitle } from '@/lib/format';
-import type { Table } from '@/lib/types';
+import { Switch } from '@/components/ui/switch';
 import { usePosition } from '@/composables/usePosition';
+import { listTables } from '@/lib/api';
+import {
+  DIETARY_OPTIONS,
+  formatDay,
+  formatDistance,
+  formatSeatsCourt,
+  formatTime,
+  initials,
+  tableTitle,
+} from '@/lib/format';
+import type { DietaryPreference, Table } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
-import { cn } from '@/lib/utils';
 
-const RADIUS_OPTIONS = [1, 2, 5, 10, 20];
+const RAYONS = [1, 2, 5, 10, 20];
+const RAYON_DEFAUT = 2;
+
+/** Champ de saisie arrondi, aligné sur la maquette de recherche. */
+const CHAMP = 'h-[52px] rounded-full border-ardoise/10 bg-surface';
 
 const meStore = useMeStore();
 const position = usePosition();
 
-const query = ref('');
-const tonight = ref(false);
-const vegetarian = ref(false);
-const radiusKm = ref(2);
-const radiusOpen = ref(false);
+const q = ref('');
+const ceSoir = ref(false);
+const regimes = ref<DietaryPreference[]>([]);
+const radiusKm = ref(RAYON_DEFAUT);
+const filtresOuverts = ref(false);
 const view = ref<'liste' | 'carte'>('liste');
 const selectedId = ref<string | null>(null);
 
@@ -36,24 +63,33 @@ const total = ref(0);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
+const quartier = computed(() => meStore.profile?.neighborhood ?? '');
 const center = computed(() => ({
   lat: position.latitude.value ?? 45.7485,
   lng: position.longitude.value ?? 4.8467,
 }));
-
 const selected = computed(() => tables.value.find((t) => t.id === selectedId.value) ?? null);
-const hasFilters = computed(() => tonight.value || vegetarian.value || query.value.trim().length > 1);
+const vegetarien = computed(() => regimes.value.includes('VEGETARIAN'));
+const aDesFiltres = computed(
+  () => ceSoir.value || regimes.value.length > 0 || q.value.trim().length > 1,
+);
+const nbFiltres = computed(
+  () => regimes.value.length + (ceSoir.value ? 1 : 0) + (radiusKm.value !== RAYON_DEFAUT ? 1 : 0),
+);
+const compteTables = computed(() => `${total.value} ${total.value > 1 ? 'tablées' : 'tablée'}`);
+const distanceHote = computed(() => formatDistance(selected.value?.distanceMeters));
 
-function tonightWindow(): { startsAfter?: string; startsBefore?: string } {
-  if (!tonight.value) return {};
-  const now = new Date();
-  const start = new Date(now);
-  start.setHours(18, 0, 0, 0);
-  if (start < now) start.setTime(now.getTime() + 15 * 60_000);
-  const end = new Date(now);
-  end.setHours(2, 0, 0, 0);
-  end.setDate(end.getDate() + 1);
-  return { startsAfter: start.toISOString(), startsBefore: end.toISOString() };
+/** « Ce soir » : de 18 h à 2 h du matin. */
+function fenetreCeSoir(): { startsAfter?: string; startsBefore?: string } {
+  if (!ceSoir.value) return {};
+  const maintenant = new Date();
+  const debut = new Date(maintenant);
+  debut.setHours(18, 0, 0, 0);
+  if (debut < maintenant) debut.setTime(maintenant.getTime() + 15 * 60_000);
+  const fin = new Date(maintenant);
+  fin.setHours(2, 0, 0, 0);
+  fin.setDate(fin.getDate() + 1);
+  return { startsAfter: debut.toISOString(), startsBefore: fin.toISOString() };
 }
 
 async function ensurePosition() {
@@ -68,16 +104,19 @@ async function load() {
   error.value = null;
   try {
     await ensurePosition();
+    // Sans point de départ connu (géolocalisation refusée, profil incomplet),
+    // on ne peut pas trier par distance : on trie par date.
+    const aUnePosition = position.latitude.value != null && position.longitude.value != null;
     const page = await listTables({
-      lat: position.latitude.value ?? undefined,
-      lng: position.longitude.value ?? undefined,
+      lat: aUnePosition ? position.latitude.value! : undefined,
+      lng: aUnePosition ? position.longitude.value! : undefined,
       radiusKm: radiusKm.value,
-      vegetarianOnly: vegetarian.value || undefined,
-      query: query.value.trim().length > 1 ? query.value.trim() : undefined,
-      sortBy: 'distance',
+      dietary: regimes.value.length ? regimes.value : undefined,
+      query: q.value.trim().length > 1 ? q.value.trim() : undefined,
+      sortBy: aUnePosition ? 'distance' : 'startsAt',
       page: 1,
       pageSize: 20,
-      ...tonightWindow(),
+      ...fenetreCeSoir(),
     });
     tables.value = page.data;
     total.value = page.pagination.totalItems;
@@ -91,92 +130,151 @@ async function load() {
   }
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
-watch(query, () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => void load(), 400);
+function basculerRegime(valeur: DietaryPreference) {
+  const ensemble = new Set(regimes.value);
+  if (ensemble.has(valeur)) ensemble.delete(valeur);
+  else ensemble.add(valeur);
+  regimes.value = [...ensemble];
+}
+
+function retirerFiltres() {
+  ceSoir.value = false;
+  regimes.value = [];
+  q.value = '';
+  radiusKm.value = RAYON_DEFAUT;
+}
+
+let minuteur: ReturnType<typeof setTimeout> | undefined;
+watch(q, () => {
+  clearTimeout(minuteur);
+  minuteur = setTimeout(() => void load(), 400);
 });
-watch([tonight, vegetarian, radiusKm], () => void load());
-watch(radiusOpen, (open) => { if (!open) void load(); });
+watch([ceSoir, regimes, radiusKm], () => void load(), { deep: true });
 
 onMounted(load);
 </script>
 
 <template>
   <div class="flex flex-1 flex-col">
-    <AppBar>
-      <template #right>
+    <AppBar />
+
+    <!-- `pt-3` : la maquette laisse respirer la barre de recherche sous le titre. -->
+    <div class="app-pad flex flex-1 flex-col gap-3 pt-3 pb-6">
+      <!-- Recherche + quartier (liste) ou bouton de filtres (carte). -->
+      <div class="flex items-center gap-2">
+        <InputGroup :class="CHAMP" class="min-w-0 flex-1">
+          <InputGroupAddon align="inline-start">
+            <Search class="size-4 text-sauge" :stroke-width="1.9" />
+          </InputGroupAddon>
+          <InputGroupInput
+            v-model="q"
+            type="search"
+            placeholder="Rechercher une tablée"
+            aria-label="Rechercher une tablée"
+            class="text-body-sm"
+          />
+          <InputGroupAddon v-if="q" align="inline-end">
+            <button
+              type="button"
+              class="grid size-6 place-items-center rounded-full text-ardoise/60"
+              aria-label="Effacer la recherche"
+              @click="q = ''"
+            >
+              <X class="size-4" :stroke-width="2" />
+            </button>
+          </InputGroupAddon>
+        </InputGroup>
+
+        <LocationPill v-if="view === 'liste' && quartier" size="lg" :label="quartier" />
         <button
+          v-else
           type="button"
-          class="grid size-10 place-items-center rounded-full border border-ardoise/12 text-ardoise hover:bg-ardoise/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
-          aria-label="Choisir le rayon de recherche"
-          @click="radiusOpen = true"
+          class="relative grid size-[52px] shrink-0 place-items-center rounded-full border border-ardoise/10 bg-surface text-sauge"
+          aria-label="Filtrer les tablées"
+          @click="filtresOuverts = true"
         >
-          <SlidersHorizontal class="size-5" :stroke-width="1.75" />
+          <SlidersHorizontal class="size-5" :stroke-width="1.9" />
+          <span
+            v-if="nbFiltres"
+            class="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-terracotta text-[10px] font-bold text-creme"
+          >
+            {{ nbFiltres }}
+          </span>
         </button>
-      </template>
-    </AppBar>
+      </div>
 
-    <div class="app-pad flex flex-1 flex-col gap-3 pb-6">
-      <InputGroup
-        class="h-12 rounded-xl border-ardoise/12 bg-creme"
-        :class="view === 'carte' ? 'order-none' : ''"
-      >
-        <InputGroupAddon align="inline-start">
-          <Search class="size-4 text-secondaire" />
-        </InputGroupAddon>
-        <InputGroupInput
-          v-model="query"
-          type="search"
-          placeholder="Rechercher une tablée"
-          aria-label="Rechercher une tablée"
-          class="text-body-md"
-        />
-      </InputGroup>
-
-      <div class="flex items-center gap-2 overflow-x-auto pb-1">
+      <!-- Filtres rapides : créneau, régime et rayon. Les pastilles se partagent
+           toute la largeur disponible, comme sur la maquette. -->
+      <div v-if="view === 'liste'" class="flex flex-wrap items-stretch gap-2">
         <button
           type="button"
-          class="shrink-0 rounded-full border px-3 py-1.5 text-label-md transition-colors"
-          :class="
-            tonight
-              ? 'border-terracotta bg-terracotta text-creme'
-              : 'border-ardoise/15 bg-creme text-ardoise hover:bg-ardoise/5'
-          "
-          :aria-pressed="tonight"
-          @click="tonight = !tonight"
+          class="flex grow items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-label-sm transition-colors"
+          :class="ceSoir ? 'bg-sauge text-creme' : 'bg-sauge/10 text-sauge-fonce'"
+          :aria-pressed="ceSoir"
+          @click="ceSoir = !ceSoir"
         >
+          <CalendarDays class="size-3.5" :class="ceSoir ? 'text-creme' : 'text-sauge'" :stroke-width="2" />
           Ce soir
+          <ChevronDown
+            class="size-3"
+            :class="ceSoir ? 'text-creme' : 'text-sauge/70'"
+            :stroke-width="2.5"
+          />
         </button>
+
         <button
           type="button"
-          class="shrink-0 rounded-full border px-3 py-1.5 text-label-md transition-colors"
-          :class="
-            vegetarian
-              ? 'border-terracotta bg-terracotta text-creme'
-              : 'border-ardoise/15 bg-creme text-ardoise hover:bg-ardoise/5'
-          "
-          :aria-pressed="vegetarian"
-          @click="vegetarian = !vegetarian"
+          class="flex grow items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-label-sm transition-colors"
+          :class="vegetarien ? 'bg-sauge text-creme' : 'bg-sauge/10 text-sauge-fonce'"
+          :aria-pressed="vegetarien"
+          @click="basculerRegime('VEGETARIAN')"
         >
+          <Leaf class="size-3.5" :class="vegetarien ? 'text-creme' : 'text-sauge'" :stroke-width="2" />
           Végétarien
         </button>
+
         <button
           type="button"
-          class="flex shrink-0 items-center gap-1 rounded-full border border-ardoise/15 bg-creme px-3 py-1.5 text-label-md text-ardoise hover:bg-ardoise/5"
-          @click="radiusOpen = true"
+          class="flex grow items-center justify-center gap-1.5 rounded-full bg-sauge/10 px-3 py-2.5 text-label-sm text-sauge-fonce transition-colors"
+          :aria-label="`Filtrer dans un rayon de ${radiusKm} km`"
+          @click="filtresOuverts = true"
         >
-          {{ radiusKm }} km
+          <MapPin class="size-3.5 text-sauge" :stroke-width="2" />
+          &lt; {{ radiusKm }} km
+        </button>
+      </div>
+
+      <!-- Bascule Carte / Liste, pleine largeur comme la maquette. -->
+      <div class="grid grid-cols-2 gap-1 rounded-full bg-ardoise/5 p-1">
+        <button
+          type="button"
+          class="flex items-center justify-center gap-2 rounded-full py-2 text-button-md transition-colors"
+          :class="view === 'carte' ? 'bg-terracotta text-creme' : 'text-ardoise'"
+          :aria-pressed="view === 'carte'"
+          @click="view = 'carte'"
+        >
+          <MapIcon class="size-4" :stroke-width="2" />
+          Carte
+        </button>
+        <button
+          type="button"
+          class="flex items-center justify-center gap-2 rounded-full py-2 text-button-md transition-colors"
+          :class="view === 'liste' ? 'bg-terracotta text-creme' : 'text-ardoise'"
+          :aria-pressed="view === 'liste'"
+          @click="view = 'liste'"
+        >
+          <ListIcon class="size-4" :stroke-width="2" />
+          Liste
         </button>
       </div>
 
       <div v-if="loading" class="flex flex-col gap-3">
-        <Skeleton class="h-6 w-52" />
         <Skeleton class="h-24 w-full rounded-2xl" />
-        <Skeleton class="h-24 w-full rounded-2xl" />
+        <Skeleton class="h-32 w-full rounded-2xl" />
+        <Skeleton class="h-32 w-full rounded-2xl" />
       </div>
 
-      <Empty v-else-if="error" class="border border-ardoise/10">
+      <Empty v-else-if="error">
         <EmptyHeader>
           <EmptyTitle>La recherche a échoué</EmptyTitle>
           <EmptyDescription>{{ error }}</EmptyDescription>
@@ -186,52 +284,81 @@ onMounted(load);
         </EmptyContent>
       </Empty>
 
-      <template v-else>
-        <div class="flex items-center justify-between gap-3">
-          <h2 class="min-w-0 text-title-md font-titres text-sauge">
-            {{ total }} {{ total > 1 ? 'tablées' : 'tablée' }} autour de vous
-          </h2>
-          <div class="flex shrink-0 items-center gap-1 rounded-full border border-ardoise/12 p-1">
-            <button
-              type="button"
-              class="rounded-full px-3 py-1 text-label-sm transition-colors"
-              :class="view === 'liste' ? 'bg-ardoise/8 text-ardoise' : 'text-secondaire'"
-              :aria-pressed="view === 'liste'"
-              @click="view = 'liste'"
-            >
-              Liste
-            </button>
-            <button
-              type="button"
-              class="rounded-full px-3 py-1 text-label-sm transition-colors"
-              :class="view === 'carte' ? 'bg-ardoise/8 text-ardoise' : 'text-secondaire'"
-              :aria-pressed="view === 'carte'"
-              @click="view = 'carte'"
-            >
-              Carte
-            </button>
-          </div>
-        </div>
+      <!-- Liste -->
+      <template v-else-if="view === 'liste'">
+        <button
+          v-if="total > 0"
+          type="button"
+          class="relative min-h-[104px] overflow-hidden rounded-2xl bg-sauge/12 p-4 text-left"
+          aria-label="Afficher les tablées sur la carte"
+          @click="view = 'carte'"
+        >
+          <svg
+            class="pointer-events-none absolute inset-0 size-full"
+            viewBox="0 0 335 104"
+            fill="none"
+            preserveAspectRatio="xMidYMid slice"
+            aria-hidden="true"
+          >
+            <path d="M-10 24 L140 6" stroke="#ffffff" stroke-width="7" stroke-opacity=".85" />
+            <path d="M-10 84 L200 100" stroke="#ffffff" stroke-width="7" stroke-opacity=".85" />
+            <path d="M206 -10 L176 114" stroke="#ffffff" stroke-width="6" stroke-opacity=".8" />
+            <path d="M300 -10 L268 114" stroke="#ffffff" stroke-width="6" stroke-opacity=".8" />
+            <path d="M208 8 h44 v26 h-44 z" fill="#cfe0c8" fill-opacity=".55" />
+            <path d="M272 60 h48 v30 h-48 z" fill="#cfe0c8" fill-opacity=".55" />
+            <path
+              d="M42 112 C 62 76, 92 62, 128 -12"
+              stroke="#bcd8e6"
+              stroke-width="12"
+              stroke-linecap="round"
+            />
+            <circle cx="252" cy="48" r="28" fill="#db5a3b" fill-opacity=".12" />
+            <path
+              d="M252 26 c-8 0 -14 6 -14 14 c0 10 14 24 14 24 s14 -14 14 -24 c0 -8 -6 -14 -14 -14 z"
+              fill="#db5a3b"
+            />
+            <circle cx="252" cy="40" r="5" fill="#faf7f2" />
+            <circle cx="150" cy="72" r="5" fill="#db5a3b" />
+            <circle cx="212" cy="18" r="5" fill="#db5a3b" />
+            <circle cx="312" cy="40" r="5" fill="#db5a3b" />
+          </svg>
 
-        <template v-if="view === 'liste'">
-        <Empty v-if="!tables.length" class="border border-ardoise/10">
+          <p class="relative max-w-[64%] font-titres text-title-md text-sauge-fonce">
+            <span class="relative inline-block">
+              {{ compteTables }}
+              <svg
+                class="absolute -top-2 left-[calc(100%+3px)]"
+                width="20"
+                height="14"
+                viewBox="0 0 20 14"
+                fill="none"
+                stroke="#db5a3b"
+                stroke-width="3"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12 L6 3" />
+                <path d="M11 13 L15 4" />
+              </svg>
+            </span>
+            <br />
+            autour de vous
+          </p>
+        </button>
+
+        <Empty v-if="!tables.length">
           <EmptyHeader>
             <EmptyTitle>Aucune tablée par ici</EmptyTitle>
             <EmptyDescription>
               {{
-                hasFilters
+                aDesFiltres
                   ? 'Élargis le rayon ou retire un filtre pour voir plus de tablées.'
                   : 'Aucune tablée ouverte dans ton quartier pour le moment.'
               }}
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
-            <Button
-              v-if="hasFilters"
-              variant="secondary"
-              size="default"
-              @click="((tonight = false), (vegetarian = false), (query = ''), (radiusKm = 5))"
-            >
+          <EmptyContent v-if="aDesFiltres">
+            <Button variant="secondary" size="default" @click="retirerFiltres">
               <X data-icon="inline-start" />
               Retirer les filtres
             </Button>
@@ -250,11 +377,16 @@ onMounted(load);
         </div>
 
         <div class="mt-2 flex justify-center">
-          <MascotBubble text="Utilise les filtres pour trouver ta tablée." pose="point" :size="92" />
+          <MascotBubble
+            text="Utilise les filtres pour trouver ta tablée."
+            :image="illustration"
+            :size="104"
+          />
         </div>
-        </template>
+      </template>
 
-        <template v-else>
+      <!-- Carte -->
+      <template v-else>
         <div class="relative -mx-1 min-h-[320px] flex-1 overflow-hidden rounded-2xl border border-ardoise/10">
           <TablesMap
             :tables="tables"
@@ -264,47 +396,125 @@ onMounted(load);
           />
           <p
             v-if="position.locating.value"
-            class="absolute left-3 top-3 rounded-full bg-creme/95 px-3 py-1 text-micro text-secondaire"
+            class="absolute top-3 left-3 rounded-full bg-creme/95 px-3 py-1 text-micro text-secondaire"
           >
             Localisation en cours…
           </p>
         </div>
 
-        <div v-if="selected" class="flex flex-col gap-3">
-          <TableCard :table="selected" />
+        <article
+          v-if="selected"
+          class="flex flex-col gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)]"
+        >
+          <div class="flex gap-3">
+            <DishPhoto :dish-name="selected.dishName" :size="104" class="self-start" />
+            <div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+              <h3 class="text-body-lg-strong leading-[22px] text-ardoise">{{ tableTitle(selected) }}</h3>
+              <div class="flex items-center gap-2">
+                <span
+                  class="grid size-9 shrink-0 place-items-center rounded-full bg-sauge/15 text-micro font-bold text-sauge-fonce"
+                  aria-hidden="true"
+                >
+                  {{ initials(selected.host?.firstName ?? '', '') }}
+                </span>
+                <p class="flex min-w-0 flex-wrap items-center gap-x-1.5 text-micro text-ardoise">
+                  <span class="font-bold">{{ selected.host?.firstName }}</span>
+                  <template v-if="selected.host?.rating && selected.host.rating.count > 0">
+                    <span class="text-ardoise/35" aria-hidden="true">·</span>
+                    <span class="flex items-center gap-1">
+                      <Star class="size-3.5 shrink-0 fill-etoile text-etoile" :stroke-width="0" />
+                      {{ selected.host.rating.average.toFixed(1).replace('.', ',') }}
+                      <span class="text-secondaire">({{ selected.host.rating.count }} avis)</span>
+                    </span>
+                  </template>
+                </p>
+              </div>
+            </div>
+            <span
+              class="grid size-9 shrink-0 place-items-center self-center rounded-full bg-sauge/12 text-sauge-fonce"
+              aria-hidden="true"
+            >
+              <ChevronRight class="size-4" :stroke-width="2.25" />
+            </span>
+          </div>
+
+          <div class="flex flex-col gap-1.5 text-body-sm text-secondaire">
+            <p class="flex items-center gap-2">
+              <CalendarDays class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
+              {{ formatDay(selected.startsAt) }} · {{ formatTime(selected.startsAt) }}
+            </p>
+            <p class="flex items-center gap-2">
+              <MapPin class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
+              {{ selected.location.neighborhood }}
+              <template v-if="distanceHote"> · {{ distanceHote }}</template>
+            </p>
+            <p class="flex items-center gap-2">
+              <Users class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
+              {{ formatSeatsCourt(selected.seatsAvailable) }}
+            </p>
+          </div>
+
           <Button as-child size="lg" class="w-full">
-            <RouterLink :to="`/tables/${selected.id}`">Voir la tablée</RouterLink>
+            <RouterLink :to="`/tables/${selected.id}`">
+              Voir la tablée
+              <ChevronRight data-icon="inline-end" />
+            </RouterLink>
           </Button>
-        </div>
+        </article>
         <p v-else class="text-center text-body-sm text-secondaire">
           Aucune tablée à afficher sur la carte.
         </p>
-        </template>
       </template>
     </div>
 
-    <Drawer v-model:open="radiusOpen">
+    <!-- Filtres : régime et rayon -->
+    <Drawer v-model:open="filtresOuverts">
       <DrawerContent class="bg-creme">
         <DrawerHeader class="app-pad text-left">
-          <DrawerTitle class="text-title-lg font-titres text-sauge">Rayon de recherche</DrawerTitle>
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Filtres</DrawerTitle>
         </DrawerHeader>
-        <div class="app-pad flex flex-col gap-2 pb-8">
-          <button
-            v-for="option in RADIUS_OPTIONS"
-            :key="option"
-            type="button"
-            class="flex items-center justify-between rounded-xl border px-4 py-3 text-body-md transition-colors"
-            :class="
-              cn(
-                'border-ardoise/12',
-                radiusKm === option ? 'bg-sauge/12 text-sauge-fonce' : 'bg-creme text-ardoise hover:bg-ardoise/5',
-              )
-            "
-            @click="((radiusKm = option), (radiusOpen = false))"
-          >
-            {{ option }} km
-            <MapPin v-if="radiusKm === option" class="size-4" :stroke-width="2.25" />
-          </button>
+
+        <div class="app-pad flex flex-col gap-5 pb-8">
+          <section class="flex flex-col gap-3">
+            <h3 class="text-body-lg-strong text-ardoise">Autour de toi</h3>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="rayon in RAYONS"
+                :key="rayon"
+                type="button"
+                class="rounded-full px-4 py-2 text-label-md transition-colors"
+                :class="
+                  radiusKm === rayon
+                    ? 'bg-terracotta text-creme'
+                    : 'bg-sauge/10 text-sauge-fonce'
+                "
+                :aria-pressed="radiusKm === rayon"
+                @click="radiusKm = rayon"
+              >
+                {{ rayon }} km
+              </button>
+            </div>
+          </section>
+
+          <section class="flex flex-col gap-2">
+            <h3 class="mb-2 text-body-lg-strong text-ardoise">Régime alimentaire</h3>
+            <label class="flex items-center justify-between gap-3 rounded-xl px-1 py-3">
+              <span class="text-body-md text-ardoise">{{ DIETARY_OPTIONS[0].label }}</span>
+              <Switch
+                :model-value="regimes.includes('VEGETARIAN')"
+                @update:model-value="basculerRegime('VEGETARIAN')"
+              />
+            </label>
+            <!-- Le modèle ne stocke que « plat végétarien » par tablée : les autres
+                 régimes (vegan, sans porc, halal…) attendent un champ dédié. -->
+            <p class="text-micro text-secondaire">
+              Les autres régimes (vegan, sans porc, halal…) arrivent bientôt.
+            </p>
+          </section>
+
+          <Button size="lg" class="w-full" @click="filtresOuverts = false">
+            Voir {{ compteTables }}
+          </Button>
         </div>
       </DrawerContent>
     </Drawer>

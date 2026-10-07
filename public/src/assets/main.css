@@ -23,6 +23,8 @@
   --color-sauge-fonce: #3f5a48;
   --color-ardoise: #2b2b2b;
   --color-secondaire: rgba(43, 43, 43, 0.7);
+  /* Étoile des avis : jaune de la maquette, absent de la palette de base. */
+  --color-etoile: #f2b53c;
   /* Fond des champs de saisie (la maquette les montre blancs). */
   --color-surface: #ffffff;
 

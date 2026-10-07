@@ -22,6 +22,7 @@ import {
   DEMO_TABLE_GRATIN,
   DEMO_UPCOMING,
   DEMO_USER,
+  demoQueryTables,
   demoPage,
 } from './mock';
 
@@ -145,7 +146,8 @@ export interface TableQuery {
 }
 
 export function listTables(params: TableQuery = {}): Promise<Page<Table>> {
-  if (DEMO_MODE) return Promise.resolve(demoPage(DEMO_ALL));
+  // En démo, les filtres sont appliqués au jeu de données local (pas de Worker).
+  if (DEMO_MODE) return Promise.resolve(demoPage(demoQueryTables(params)));
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue;

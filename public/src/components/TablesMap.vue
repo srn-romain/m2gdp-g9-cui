@@ -17,7 +17,8 @@ let map: L.Map | null = null;
 let layer: L.LayerGroup | null = null;
 
 function pinIcon(selected: boolean, label: string): L.DivIcon {
-  const background = selected ? '#5B8266' : '#DB5A3B';
+  // Toutes les épingles restent terracotta (maquette) : la sélection est plus foncée.
+  const background = selected ? '#B8442A' : '#DB5A3B';
   const scale = selected ? 1.12 : 1;
   return L.divIcon({
     className: '',
