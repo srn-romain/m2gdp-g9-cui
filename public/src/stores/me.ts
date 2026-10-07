@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { getMe, updateMe } from '@/lib/api';
+import { syncProfileToFirestore } from '@/lib/firestoreProfile';
 import type { User, UserUpdate } from '@/lib/types';
+import { useAuthStore } from './auth';
 
 /** Profil de l'utilisateur connecté : GET /me et PATCH /me. */
 export const useMeStore = defineStore('me', () => {
@@ -33,6 +35,13 @@ export const useMeStore = defineStore('me', () => {
   async function save(patch: UserUpdate): Promise<User> {
     const updated = await updateMe(patch);
     profile.value = updated;
+    // Miroir Firestore : best effort, une panne ne doit pas casser l'enregistrement.
+    const uid = useAuthStore().user?.uid;
+    if (uid) {
+      await syncProfileToFirestore(uid, updated).catch((e) => {
+        console.warn('[profil] miroir Firestore non écrit :', e);
+      });
+    }
     return updated;
   }
 
