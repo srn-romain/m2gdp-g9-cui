@@ -65,6 +65,12 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: { cacheName: 'meteo', networkTimeoutSeconds: 5, expiration: { maxEntries: 4, maxAgeSeconds: 1800 } },
           },
+          {
+            // Recherche d'adresse (Base Adresse Nationale) : réponses courtes, utiles hors-ligne.
+            urlPattern: /^https:\/\/api-adresse\.data\.gouv\.fr\/.*/i,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'adresses', networkTimeoutSeconds: 5, expiration: { maxEntries: 30, maxAgeSeconds: 86400 } },
+          },
           { urlPattern: /^https:\/\/.*\.tile\.openstreetmap\.org\/.*/i, handler: 'CacheFirst', options: { cacheName: 'osm', expiration: { maxEntries: 200, maxAgeSeconds: 2592000 } } },
         ],
       },

@@ -4,10 +4,12 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 import illustration from '@/assets/bonjour.png';
+import AddressField from '@/components/AddressField.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Separator } from '@/components/ui/separator';
+import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
 import { saveSignupDraft } from '@/lib/signupDraft';
 import { DEMO_MODE } from '@/lib/mock';
 import { CHAMP, ICONE_CHAMP } from '@/lib/styles';
@@ -18,9 +20,12 @@ const lastName = ref('');
 const address = ref('');
 const email = ref('');
 const loading = ref(false);
+/** Adresse retenue dans la liste de suggestions, avec ses coordonnées. */
+const adresseChoisie = ref<Adresse | null>(null);
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { chercherUne } = useAddressSearch();
 
 async function submit() {
   if (!firstName.value.trim() || !lastName.value.trim()) {
@@ -38,12 +43,18 @@ async function submit() {
   const mail = email.value.trim();
   loading.value = true;
   try {
+    // 202 systématique : on ne sait pas ici si l'adresse est déjà connue. La réponse
+    // « ce compte existe déjà » arrive après le clic sur le lien, dans AuthFinishView.
+    await authStore.sendMagicLink(mail);
+    // Sans suggestion retenue, on tente une dernière recherche avant d'enregistrer :
+    // l'adresse porte les coordonnées qui alimentent distances et météo.
+    const adresse = adresseChoisie.value ?? (await chercherUne(address.value));
     saveSignupDraft({
       firstName: firstName.value.trim(),
       lastName: lastName.value.trim(),
-      address: address.value.trim(),
+      adresseSaisie: address.value.trim(),
+      adresse: adresse ?? undefined,
     });
-    await authStore.sendMagicLink(mail);
     await router.push(DEMO_MODE ? { path: '/' } : { path: '/email-sent', query: { email: mail } });
   } catch (e) {
     toast.error(e instanceof Error ? e.message : 'La création du compte a échoué.');
@@ -100,18 +111,12 @@ async function submit() {
 
         <Field>
           <FieldLabel for="signup-address" class="sr-only">Adresse</FieldLabel>
-          <InputGroup :class="CHAMP">
-            <InputGroupAddon align="inline-start">
-              <User :class="ICONE_CHAMP" :stroke-width="1.6" />
-            </InputGroupAddon>
-            <InputGroupInput
-              id="signup-address"
-              v-model="address"
-              autocomplete="address-level2"
-              placeholder="adresse"
-              class="text-body-md"
-            />
-          </InputGroup>
+          <AddressField
+            id="signup-address"
+            v-model="address"
+            placeholder="adresse"
+            @select="adresseChoisie = $event"
+          />
         </Field>
 
         <Field>

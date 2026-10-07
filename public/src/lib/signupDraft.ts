@@ -1,60 +1,42 @@
-/** Profil saisi avant la connexion, appliqué par PATCH /me au retour du lien magique. */
+import type { Adresse } from '@/composables/useAddressSearch';
+
+/**
+ * Profil saisi avant la connexion, appliqué par PATCH /me au retour du lien magique.
+ * L'adresse vient de l'autocomplétion : elle porte le quartier, la ville et les
+ * coordonnées, ce qui alimente les distances et la météo.
+ */
 export interface SignupDraft {
   firstName: string;
   lastName: string;
-  /** Saisie libre (« Lyon 7e ») : le quartier exact est résolu après connexion. */
-  address: string;
+  /** Saisie brute, conservée si la recherche d'adresse n'a rien donné. */
+  adresseSaisie: string;
+  adresse?: Adresse;
 }
 
-const KEY = 'lbt.signupDraft';
+const CLE = 'lbt.signupDraft';
 
 export function saveSignupDraft(draft: SignupDraft): void {
-  window.localStorage.setItem(KEY, JSON.stringify(draft));
+  window.localStorage.setItem(CLE, JSON.stringify(draft));
 }
 
 export function readSignupDraft(): SignupDraft | null {
-  const raw = window.localStorage.getItem(KEY);
-  if (!raw) return null;
+  const brut = window.localStorage.getItem(CLE);
+  if (!brut) return null;
   try {
-    return JSON.parse(raw) as SignupDraft;
+    return JSON.parse(brut) as SignupDraft;
   } catch {
     return null;
   }
 }
 
 export function clearSignupDraft(): void {
-  window.localStorage.removeItem(KEY);
+  window.localStorage.removeItem(CLE);
 }
 
-/** « Lyon 7e » -> quartier « Lyon 7e », ville « Lyon ». */
+/** Repli quand l'adresse n'a pas pu être géolocalisée : « Lyon 7e » -> Quartier + Ville. */
 export function guessNeighborhoodCity(address: string): { neighborhood: string; city: string } {
-  const value = address.trim();
-  if (!value) return { neighborhood: '', city: '' };
-  const city = value.replace(/\s+\d+\s*(er|e|ème)?$/i, '').trim();
-  return { neighborhood: value, city: city || value };
-}
-
-/** « 12 rue de Marseille, 69007 Lyon, France » -> quartier, ville, code postal. */
-export function parseFrenchAddress(formatted: string): {
-  neighborhood: string;
-  city: string;
-  postalCode?: string;
-} {
-  const parts = formatted.split(',').map((p) => p.trim()).filter(Boolean);
-  const postal = parts.find((p) => /^\d{5}\s+\S/.test(p));
-  if (postal) {
-    const match = /^(\d{5})\s+(.+)$/.exec(postal);
-    if (match) {
-      const [, code, city] = match;
-      const arrondissement = /^(75|69|13)/.test(code) ? Number(code.slice(3)) : 0;
-      const neighborhood = arrondissement
-        ? `${city} ${arrondissement === 1 ? '1er' : `${arrondissement}e`}`
-        : parts[0] && parts[0] !== city
-          ? parts[0]
-          : city;
-      return { neighborhood, city, postalCode: code };
-    }
-  }
-  const city = parts.length > 1 ? parts[parts.length - 2] : (parts[0] ?? '');
-  return { neighborhood: parts[0] ?? city, city };
+  const valeur = address.trim();
+  if (!valeur) return { neighborhood: '', city: '' };
+  const ville = valeur.replace(/\s+\d+\s*(er|e|ème)?$/i, '').trim();
+  return { neighborhood: valeur, city: ville || valeur };
 }
