@@ -1,6 +1,5 @@
 # Local uniquement, jamais committe. Prod via `wrangler secret put`.
-FIREBASE_PROJECT_ID=m2gdp-g9-cui
-GOOGLE_MAPS_API_KEY=serveur-uniquement-jamais-front
+FIREBASE_PROJECT_ID=labonnetablee-cb767
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=

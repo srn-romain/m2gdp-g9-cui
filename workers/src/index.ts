@@ -7,7 +7,6 @@ import { meRoutes } from './routes/me';
 import { tablesRoutes } from './routes/tables';
 import { participationsRoutes } from './routes/participations';
 import { messagesRoutes } from './routes/messages';
-import { geocodeRoutes } from './routes/geocode';
 import { avatarRoutes } from './routes/avatar';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -32,7 +31,6 @@ v1.route('/me', meRoutes);
 v1.route('/tables', tablesRoutes);
 v1.route('/', participationsRoutes);
 v1.route('/', messagesRoutes);
-v1.route('/geocode', geocodeRoutes);
 v1.route('/avatar', avatarRoutes);
 app.route('/api/v1', v1);
 
