@@ -27,8 +27,8 @@ Trois fichiers, du plus partagé au plus local :
 | `public/.env.local` | non | Surcharges de développement uniquement |
 
 La clé web Firebase n'est pas un secret : elle est restreinte par les domaines autorisés
-et par référent. `VITE_GOOGLE_MAPS_API_KEY` peut rester vide, le géocodage passe par le
-proxy du Worker (clé serveur uniquement).
+et par référent. La recherche d'adresse passe par l'API Adresse (Base Adresse Nationale),
+service public gratuit et sans clé : aucun secret à gérer.
 
 ### Mode démo
 
@@ -50,8 +50,8 @@ connexion par lien magique dans la console Firebase, puis redéployer.
    npx wrangler deploy
    ```
 
-   Secrets optionnels : `npx wrangler secret put GOOGLE_MAPS_API_KEY`, `R2_ACCOUNT_ID`,
-   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
+   Secrets optionnels : `npx wrangler secret put R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+   `R2_SECRET_ACCESS_KEY` (envoi d'avatars).
 
 2. **Front** (Firebase Hosting)
 
