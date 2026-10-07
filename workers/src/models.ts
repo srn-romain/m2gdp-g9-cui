@@ -117,15 +117,20 @@ export async function toTableJson(db: D1Database, row: TableRow, viewerUserId: s
   return {
     id: row.id, hostId: row.hostId, dishName: row.dishName, description: row.description,
     // Titre dérivé : « {dishName} chez {host.firstName} », jamais stocké.
-    title: host ? `${row.dishName} chez ${host.firstName}` : row.dishName,
+    // Un hôte qui n'a pas encore complété son profil n'a pas de prénom : le titre
+    // se réduit alors au plat, plutôt qu'un « chez » orphelin.
+    title: host?.firstName ? `${row.dishName} chez ${host.firstName}` : row.dishName,
     startsAt: row.startsAt, durationMinutes: row.durationMinutes,
     seatsTotal: row.seatsTotal, seatsAvailable, visibility: row.visibility, status,
     isVegetarian: !!row.isVegetarian, hasAllergenNotice: !!row.hasAllergenNotice,
     host,
     location: {
       neighborhood: row.neighborhood, city: row.city, postalCode: row.postalCode,
-      latitude: exact ? row.latitude : round300m(row.latitude),
-      longitude: exact ? row.longitude : round300m(row.longitude),
+      // `coordinates` imbriqué, comme dans le schéma Location de l'OpenAPI.
+      coordinates: {
+        latitude: exact ? row.latitude : round300m(row.latitude),
+        longitude: exact ? row.longitude : round300m(row.longitude),
+      },
       ...(exact && row.addressLine ? { addressLine: row.addressLine } : {}),
     },
     contributions: await tableContributions(db, row.id),
