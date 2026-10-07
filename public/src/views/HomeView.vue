@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ChevronRight } from '@lucide/vue';
+import { ChevronRight, Search } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import illustration from '@/assets/bonjour.png';
 import AccentStroke from '@/components/AccentStroke.vue';
 import AppBar from '@/components/AppBar.vue';
 import InstallAppCard from '@/components/InstallAppCard.vue';
 import LocationPill from '@/components/LocationPill.vue';
-import MascotBubble from '@/components/MascotBubble.vue';
 import SectionHeading from '@/components/SectionHeading.vue';
 import TableCard from '@/components/TableCard.vue';
 import WeatherPill from '@/components/WeatherPill.vue';
@@ -42,6 +41,8 @@ const visibleUpcoming = computed(() =>
 const visiblePast = computed(() => (showAllPast.value ? past.value : past.value.slice(0, 1)));
 /** Sans passé ni à-venir, on présente l'écran vide de la maquette. */
 const isEmpty = computed(() => !upcoming.value.length && !past.value.length);
+/** Écran vide : la maquette centre le salut et met la mascotte en grand dessous. */
+const vueVide = computed(() => isEmpty.value && !loading.value);
 
 onMounted(async () => {
   loading.value = true;
@@ -73,15 +74,25 @@ onMounted(async () => {
         <WeatherPill :coordinates="meStore.profile?.coordinates" :city="meStore.profile?.city ?? ''" />
       </div>
 
-      <!-- La mascotte déborde du bloc, comme sur la maquette : elle ne pousse pas la suite. -->
+      <!-- Salut : centré sur une ligne quand il n'y a rien à montrer, sinon deux lignes
+           avec la mascotte qui déborde sans pousser la suite. -->
       <div class="relative mt-3">
-        <h1 class="text-display-lg font-titres text-sauge-fonce">
+        <h1
+          v-if="vueVide"
+          class="flex flex-wrap items-center justify-center gap-2 text-center text-display-lg font-titres text-sauge-fonce"
+        >
+          Bonjour {{ firstName }}&nbsp;!
+          <AccentStroke :height="11" class="mb-1.5" />
+        </h1>
+        <h1 v-else class="text-display-lg font-titres text-sauge-fonce">
           <span class="flex items-center gap-2">
-            Bonjour {{ firstName }}&nbsp;!
+            Bonjour
             <AccentStroke :height="11" class="mb-1.5" />
           </span>
+          <span class="block">{{ firstName }}&nbsp;!</span>
         </h1>
         <img
+          v-if="!vueVide"
           :src="illustration"
           alt=""
           class="absolute top-1/2 right-0 w-[5.5rem] -translate-y-1/2"
@@ -108,14 +119,25 @@ onMounted(async () => {
 
       <!-- Aucune tablée -->
       <template v-else-if="isEmpty">
-        <div class="mt-2 flex justify-center">
-          <MascotBubble text="Tu n'as pas encore de tablée." pose="point" layout="stack" :size="132" />
-        </div>
-        <p class="text-center text-body-md text-secondaire">
-          Trouve un repas à apporter près de chez toi.
+        <img :src="illustration" alt="" class="mx-auto w-72 max-w-full" />
+
+        <h2
+          class="flex flex-wrap items-center justify-center gap-2 text-center text-display-lg font-titres text-sauge-fonce"
+        >
+          Tu n'as pas encore de tablée.
+          <AccentStroke :height="14" />
+        </h2>
+
+        <p class="mx-auto mt-1 max-w-[15rem] text-center text-body-lg text-secondaire">
+          Trouve un repas à partager près de chez toi.
         </p>
-        <Button as-child size="lg" class="mt-2 w-full">
-          <RouterLink to="/explorer">Explorer les tablées</RouterLink>
+
+        <Button as-child size="lg" class="mt-6 w-full">
+          <RouterLink to="/explorer" class="flex w-full items-center gap-3">
+            <Search class="size-5 shrink-0" :stroke-width="2" />
+            <span class="flex-1 text-center">Explorer les tablées</span>
+            <ChevronRight class="size-5 shrink-0" :stroke-width="2" />
+          </RouterLink>
         </Button>
       </template>
 
