@@ -27,11 +27,13 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = { uid: DEMO_USER.id, email } as FirebaseUser;
       return;
     }
+    // 202 systématique côté serveur : la réponse ne dit jamais si l'adresse est connue,
+    // sinon l'endpoint permettrait d'énumérer les comptes.
+    await requestMagicLink(email).catch(() => {
+      /* une erreur réseau ne doit pas bloquer le parcours */
+    });
     await sendSignInLinkToEmail(auth, email, { url: actionUrl(), handleCodeInApp: true });
     window.localStorage.setItem('emailForSignIn', email);
-    await requestMagicLink(email).catch(() => {
-      /* 202 attendu : une erreur réseau ne doit pas bloquer le parcours. */
-    });
   }
 
   async function finishMagicLink(href = window.location.href) {

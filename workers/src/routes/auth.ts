@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { apiError } from '../errors';
 import { newId, nowIso } from '../models';
-import { verifyFirebaseIdToken } from '../auth';
+import { readFirebaseIdToken } from '../auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const hits = new Map<string, number[]>();
@@ -46,7 +46,11 @@ authRoutes.post('/sessions', async (c) => {
     email = magic.email;
   } else {
     try {
-      const p = await verifyFirebaseIdToken(body.token, c.env.FIREBASE_PROJECT_ID);
+      const p = await readFirebaseIdToken(
+        body.token,
+        c.env.FIREBASE_PROJECT_ID,
+        c.env.FIREBASE_AUTH_EMULATOR === 'true',
+      );
       email = (p.email ?? '').toLowerCase();
       if (!email) return apiError('UNAUTHENTICATED', 'Jeton invalide.');
       passthroughFirebase = true;

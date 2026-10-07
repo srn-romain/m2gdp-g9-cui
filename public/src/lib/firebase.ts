@@ -41,5 +41,6 @@ if (configured && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
   const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
   connectAuthEmulator(auth, `http://${host}:9099`);
   connectFirestoreEmulator(db, host, 8081);
-  connectDatabaseEmulator(rtdb, host, 9000);
+  // La Realtime Database est optionnelle : sans `databaseURL`, rien à connecter.
+  if (rtdb) connectDatabaseEmulator(rtdb, host, 9000);
 }
