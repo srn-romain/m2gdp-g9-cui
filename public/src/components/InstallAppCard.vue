@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Download, Share, SquarePlus } from '@lucide/vue';
 import { toast } from 'vue-sonner';
-import Mascot from './Mascot.vue';
+import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { useInstallPrompt } from '@/composables/useInstallPrompt';
 
@@ -19,7 +19,7 @@ async function install() {
 <template>
   <section v-if="!isInstalled" class="rounded-2xl border border-ardoise/10 p-4">
     <div class="flex items-center gap-3">
-      <Mascot pose="cheer" :size="64" />
+      <img :src="logo" alt="La Bonne Tablée" class="h-14 w-auto shrink-0" />
       <div class="min-w-0 flex-1">
         <h2 class="text-title-sm font-titres text-sauge-fonce">Installer l'application</h2>
         <p class="text-micro text-secondaire">

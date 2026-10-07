@@ -3,7 +3,7 @@ import { MailCheck } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
-import MascotBubble from '@/components/MascotBubble.vue';
+import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth';
 
@@ -46,12 +46,11 @@ async function resend() {
       </p>
     </div>
 
-    <div class="mt-2 flex justify-center">
-      <MascotBubble
-        text="Ouvre le lien depuis ce téléphone pour rester connecté."
-        pose="think"
-        layout="stack"
-      />
+    <div class="mt-1 flex flex-col items-center gap-2">
+      <img :src="logo" alt="La Bonne Tablée" class="w-32 max-w-full" />
+      <p class="max-w-[16rem] text-center text-title-md font-titres text-sauge">
+        Ouvre le lien depuis ce téléphone pour rester connecté.
+      </p>
     </div>
 
     <div class="mt-auto flex flex-col gap-3">
