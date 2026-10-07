@@ -1,0 +1,14 @@
+node_modules/
+public/dist/
+workers/.wrangler/
+.dev.vars
+.env.local
+.env.*.local
+.firebase/
+.firebaserc.local
+firebase-debug.log
+database-debug.log
+ui-debug.log
+*.log
+.DS_Store
+dist/

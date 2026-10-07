@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "labonnetablee-cb767"
+  },
+  "targets": {
+    "labonnetablee-cb767": {
+      "hosting": {
+        "landing": [
+          "labonnetablee-landing"
+        ],
+        "app": [
+          "labonnetablee"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
