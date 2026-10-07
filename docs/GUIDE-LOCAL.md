@@ -51,3 +51,18 @@ curl -s http://127.0.0.1:9099/emulator/v1/projects/labonnetablee-cb767/oobCodes
 
 `VITE_DEMO_MODE=true` remplace l'API par `public/src/lib/mock.ts` et ouvre une session
 fictive au premier clic : pratique pour relire le design sans rien démarrer d'autre.
+
+## Jeu de données de test
+
+`workers/seed/menus.sql` sème 100 tablées dans 20 villes, avec leurs hôtes, des invités,
+des apports et la liste d'ingrédients proposée par chaque hôte. Le script est rejouable :
+il purge d'abord ses propres lignes (comptes `seed.*@labonnetablee.test`).
+
+```sh
+# Arrêter wrangler dev d'abord (même fichier SQLite).
+cd workers
+npx wrangler d1 execute labonnetablee-db --local --file=seed/menus.sql
+```
+
+Les créneaux sont calculés à l'application du script (aujourd'hui 19 h → 20 h 30 pour
+les premières, puis sur 30 jours), donc le jeu reste toujours dans le futur.
