@@ -24,14 +24,30 @@ export const DEMO_USER: User = {
   city: 'Lyon',
   coordinates: { latitude: 45.7485, longitude: 4.8467 },
   dietaryPreferences: ['VEGETARIAN', 'NO_PORK'],
-  avatarUrl: null,
+  avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=96&q=80&auto=format&fit=crop',
   status: 'ACTIVE',
   createdAt: '2026-03-02T09:14:00Z',
   updatedAt: '2026-10-06T18:02:31Z',
 };
 
+const PORTRAITS: Record<string, string> = {
+  Léonie: 'photo-1494790108377-be9c29b29330',
+  bernard: 'photo-1500648767791-00dcc994a43e',
+  Yann: 'photo-1507003211169-0a1dd7228f2d',
+  Sarah: 'photo-1438761681033-6461ffad8d80',
+};
+
 function personne(id: string, firstName: string) {
-  return { id, firstName, avatarUrl: null, neighborhood: 'Lyon 7e', city: 'Lyon' };
+  const portrait = PORTRAITS[firstName];
+  return {
+    id,
+    firstName,
+    avatarUrl: portrait
+      ? `https://images.unsplash.com/${portrait}?w=96&q=80&auto=format&fit=crop`
+      : null,
+    neighborhood: 'Lyon 7e',
+    city: 'Lyon',
+  };
 }
 
 function apport(id: string, label: string, quantity: number, unit: 'KG' | 'UNIT', firstName: string) {
@@ -196,14 +212,31 @@ export function demoQueryTables(params: {
 
 export const DEMO_MESSAGES: Message[] = [
   {
-    id: 'm-3',
+    id: 'm-5',
+    tableId: DEMO_TABLE_GRATIN.id,
+    type: 'TEXT',
+    author: personne('demo-bernard', 'bernard'),
+    text: 'Parfait, à tout à l’heure !',
+    sentAt: at(0, 10, 26),
+  },
+  {
+    id: 'm-4',
     tableId: DEMO_TABLE_GRATIN.id,
     type: 'AUDIO',
     author: personne('demo-leonie', 'Léonie'),
     text: null,
     audioUrl: 'demo',
     durationSeconds: 12,
-    sentAt: at(0, 13, 56),
+    sentAt: at(0, 10, 25),
+  },
+  {
+    id: 'm-3',
+    tableId: DEMO_TABLE_GRATIN.id,
+    type: 'IMAGE',
+    author: personne('u-yann', 'Yann'),
+    text: null,
+    imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=640&q=80&auto=format&fit=crop',
+    sentAt: at(0, 10, 21),
   },
   {
     id: 'm-2',
@@ -211,7 +244,7 @@ export const DEMO_MESSAGES: Message[] = [
     type: 'TEXT',
     author: personne('u-yann', 'Yann'),
     text: 'Je peux passer prendre le pain.',
-    sentAt: at(0, 13, 6),
+    sentAt: at(0, 10, 19),
   },
   {
     id: 'm-1',
@@ -219,7 +252,31 @@ export const DEMO_MESSAGES: Message[] = [
     type: 'TEXT',
     author: personne('demo-bernard', 'bernard'),
     text: "J'apporte les pommes de terre.",
-    sentAt: at(0, 12, 36),
+    sentAt: at(0, 10, 18),
+  },
+  {
+    id: 'm-0',
+    tableId: DEMO_TABLE_GRATIN.id,
+    type: 'TEXT',
+    author: personne('demo-leonie', 'Léonie'),
+    text: 'Bienvenue ! Merci pour vos contributions.',
+    sentAt: at(0, 10, 12),
+  },
+  {
+    id: 'm-r2',
+    tableId: DEMO_TABLE_RISOTTO.id,
+    type: 'TEXT',
+    author: personne('demo-bernard', 'bernard'),
+    text: 'Je m’occupe du parmesan.',
+    sentAt: at(-1, 19, 4),
+  },
+  {
+    id: 'm-r1',
+    tableId: DEMO_TABLE_RISOTTO.id,
+    type: 'TEXT',
+    author: personne('demo-camille', 'Camille'),
+    text: 'Qui apporte le parmesan ?',
+    sentAt: at(-1, 18, 52),
   },
 ];
 

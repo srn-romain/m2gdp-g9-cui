@@ -192,7 +192,7 @@ export const leaveTable = (tableId: string) =>
 
 export const listMessages = (tableId: string, page = 1, pageSize = 50) =>
   DEMO_MODE
-    ? Promise.resolve(demoPage(DEMO_MESSAGES))
+    ? Promise.resolve(demoPage(DEMO_MESSAGES.filter((message) => message.tableId === tableId)))
     : apiGet<Page<Message>>(`${BASE}/tables/${tableId}/messages?page=${page}&pageSize=${pageSize}`);
 
 export const postMessage = (tableId: string, body: MessageCreate) =>
@@ -200,9 +200,55 @@ export const postMessage = (tableId: string, body: MessageCreate) =>
     ? Promise.resolve({
         id: `m-${Date.now()}`,
         tableId,
-        type: 'TEXT',
-        text: body.text,
-        author: { id: DEMO_USER.id, firstName: DEMO_USER.firstName, neighborhood: 'Lyon 7e', city: 'Lyon' },
+        ...body,
+        author: {
+          id: DEMO_USER.id,
+          firstName: DEMO_USER.firstName,
+          avatarUrl: DEMO_USER.avatarUrl ?? null,
+          neighborhood: 'Lyon 7e',
+          city: 'Lyon',
+        },
         sentAt: new Date().toISOString(),
       } as Message)
     : apiPost<Message>(`${BASE}/tables/${tableId}/messages`, body);
+
+/* --------------------------------------------------------------------------
+   Médias (photo de profil, image de message) : R2 via une URL présignée, ou
+   par le Worker quand aucun identifiant S3 n'est configuré.
+   -------------------------------------------------------------------------- */
+
+export interface MediaUpload {
+  key: string;
+  uploadUrl: string;
+  expiresIn: number;
+}
+
+export const presignMedia = (kind: 'avatar' | 'message', contentType: string, size: number) =>
+  DEMO_MODE
+    ? Promise.resolve({ key: 'demo', uploadUrl: '', expiresIn: 600 })
+    : apiPost<MediaUpload>(`${BASE}/avatar/presign`, { kind, contentType, size });
+
+/** URL absolue d'un média stocké dans R2 (l'API la sert, la clé étant imprévisible). */
+export const mediaUrl = (key: string) =>
+  `${resolveApiUrl()}${BASE}/avatar?key=${encodeURIComponent(key)}`;
+
+/** Envoie le fichier sur l'URL présignée (R2) ou sur le Worker en repli. */
+export async function uploadMedia(uploadUrl: string, fichier: Blob, contentType: string): Promise<void> {
+  if (DEMO_MODE) return;
+  const versR2 = /^https?:\/\//i.test(uploadUrl);
+  const entetes: Record<string, string> = { 'Content-Type': contentType };
+  // Le repli passe par le Worker, qui exige le jeton ; une URL R2 signée ne doit
+  // surtout pas recevoir d'en-tête Authorization, sinon la signature casse.
+  if (!versR2 && accessTokenProvider) {
+    const jeton = await accessTokenProvider();
+    if (jeton) entetes.Authorization = `Bearer ${jeton}`;
+  }
+  const reponse = await fetch(versR2 ? uploadUrl : `${resolveApiUrl()}${uploadUrl}`, {
+    method: 'PUT',
+    headers: entetes,
+    body: fichier,
+  });
+  if (!reponse.ok) {
+    throw new ApiError("L'envoi du fichier a échoué.", 'INTERNAL_ERROR', reponse.status);
+  }
+}

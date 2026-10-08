@@ -48,6 +48,19 @@ export function formatClock(iso: string): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Horodatage de liste : « 12:10 » aujourd'hui, « Hier », « Lun. », puis « 12 oct. ». */
+export function formatStamp(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const delta = Math.round((startOfDay(d) - startOfDay(now)) / 86_400_000);
+  if (delta === 0) return formatClock(iso);
+  if (delta === -1) return 'Hier';
+  if (delta < 0 && delta > -7) {
+    const jour = JOURS[d.getDay()];
+    return jour.charAt(0).toUpperCase() + jour.slice(1);
+  }
+  return `${d.getDate()} ${MOIS[d.getMonth()]}`;
+}
+
 export function formatDayTime(iso: string, now = new Date()): string {
   return `${formatDay(iso, now)} ${formatTime(iso)}`;
 }

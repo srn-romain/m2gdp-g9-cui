@@ -24,7 +24,7 @@ export type ContributionCategory =
   | 'NONE';
 export type ContributionStatus = 'PROPOSED' | 'CONFIRMED' | 'BROUGHT';
 export type QuantityUnit = 'KG' | 'G' | 'L' | 'CL' | 'UNIT' | 'PORTION';
-export type MessageType = 'TEXT' | 'AUDIO' | 'SYSTEM';
+export type MessageType = 'TEXT' | 'AUDIO' | 'IMAGE' | 'SYSTEM';
 export type TableScope = 'upcoming' | 'past' | 'all';
 export type TableSort = 'distance' | 'startsAt' | 'seatsAvailable';
 
@@ -177,14 +177,16 @@ export interface Message {
   type: MessageType;
   text?: string | null;
   audioUrl?: string | null;
+  imageUrl?: string | null;
   durationSeconds?: number | null;
   sentAt: string;
 }
 
 export interface MessageCreate {
-  type: 'TEXT' | 'AUDIO';
+  type: 'TEXT' | 'AUDIO' | 'IMAGE';
   text?: string;
   audioUrl?: string;
+  imageUrl?: string;
   durationSeconds?: number;
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Leaf, LogOut, MapPin, Utensils } from '@lucide/vue';
+import { Camera, ChevronRight, Leaf, LogOut, MapPin, Utensils } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -14,8 +14,9 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
-import { listMyTables } from '@/lib/api';
+import { listMyTables, mediaUrl, presignMedia, uploadMedia } from '@/lib/api';
 import { DIETARY_OPTIONS, formatDietary, initials } from '@/lib/format';
+import { DEMO_MODE } from '@/lib/mock';
 import { useAuthStore } from '@/stores/auth';
 import { useMeStore } from '@/stores/me';
 
@@ -34,6 +35,9 @@ const adresseTexte = ref('');
 const adresseChoisie = ref<Adresse | null>(null);
 const savingAdresse = ref(false);
 
+const champAvatar = ref<HTMLInputElement | null>(null);
+const uploadingAvatar = ref(false);
+
 const profile = computed(() => meStore.profile);
 const fullName = computed(() =>
   profile.value ? `${profile.value.firstName} ${profile.value.lastName}`.trim() : '',
@@ -51,6 +55,44 @@ function ouvrirAdresse() {
   adresseTexte.value = '';
   adresseChoisie.value = null;
   adresseOpen.value = true;
+}
+
+/** Photo de profil : R2 (URL signée ou Worker en repli), puis PATCH /me. */
+async function choisirAvatar(evenement: Event) {
+  const champ = evenement.target as HTMLInputElement;
+  const fichier = champ.files?.[0];
+  champ.value = '';
+  if (!fichier) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(fichier.type)) {
+    toast.error('Formats acceptés : JPEG, PNG ou WebP.');
+    return;
+  }
+  if (fichier.size > 5 * 1024 * 1024) {
+    toast.error('Image trop lourde (5 Mo maximum).');
+    return;
+  }
+  uploadingAvatar.value = true;
+  try {
+    let avatarUrl: string;
+    if (DEMO_MODE) {
+      // Démo : pas de stockage, on garde l'image en data URL pour l'aperçu.
+      avatarUrl = await new Promise<string>((resolve) => {
+        const lecteur = new FileReader();
+        lecteur.onload = () => resolve(String(lecteur.result));
+        lecteur.readAsDataURL(fichier);
+      });
+    } else {
+      const { key, uploadUrl } = await presignMedia('avatar', fichier.type, fichier.size);
+      await uploadMedia(uploadUrl, fichier, fichier.type);
+      avatarUrl = mediaUrl(key);
+    }
+    await meStore.save({ avatarUrl });
+    toast.success('Photo de profil mise à jour.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "L'envoi de la photo a échoué.");
+  } finally {
+    uploadingAvatar.value = false;
+  }
 }
 
 /**
@@ -121,12 +163,35 @@ onMounted(async () => {
 
       <template v-else>
         <div class="flex items-center gap-3">
-          <Avatar class="size-16 bg-terracotta/12">
-            <AvatarImage v-if="profile.avatarUrl" :src="profile.avatarUrl" :alt="fullName" />
-            <AvatarFallback class="text-button-md text-terracotta">
-              {{ initials(profile.firstName, profile.lastName) }}
-            </AvatarFallback>
-          </Avatar>
+          <span class="relative inline-flex size-16 shrink-0">
+            <Avatar class="size-16 bg-terracotta/12">
+              <AvatarImage
+                v-if="profile.avatarUrl"
+                :src="profile.avatarUrl"
+                :alt="fullName"
+                class="size-full object-cover"
+              />
+              <AvatarFallback class="text-button-md text-terracotta">
+                {{ initials(profile.firstName, profile.lastName) }}
+              </AvatarFallback>
+            </Avatar>
+            <button
+              type="button"
+              class="absolute -right-1 -bottom-1 grid size-7 place-items-center rounded-full border-2 border-creme bg-sauge text-creme transition-colors hover:bg-sauge-fonce disabled:opacity-60"
+              :disabled="uploadingAvatar"
+              aria-label="Changer la photo de profil"
+              @click="champAvatar?.click()"
+            >
+              <Camera class="size-3.5" :stroke-width="2.25" />
+            </button>
+            <input
+              ref="champAvatar"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="choisirAvatar"
+            />
+          </span>
           <div class="min-w-0">
             <h1 class="truncate text-display-lg font-titres text-sauge">{{ fullName }}</h1>
             <p class="text-micro text-secondaire">{{ profile.neighborhood }} · {{ profile.email }}</p>
