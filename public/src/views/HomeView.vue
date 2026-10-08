@@ -74,8 +74,9 @@ onMounted(async () => {
         <WeatherPill :coordinates="meStore.profile?.coordinates" :city="meStore.profile?.city ?? ''" />
       </div>
 
-      <!-- Salut : centré sur une ligne quand il n'y a rien à montrer, sinon deux lignes
-           avec la mascotte qui déborde sans pousser la suite. -->
+      <!-- Salut : centré quand il n'y a rien à montrer ; sinon sur une ligne, avec la
+           réserve de largeur de la mascotte (pr) pour qu'un prénom long passe dessous
+           au lieu de la percuter. -->
       <div class="relative mt-3">
         <h1
           v-if="vueVide"
@@ -84,12 +85,11 @@ onMounted(async () => {
           Bonjour {{ firstName }}&nbsp;!
           <AccentStroke :height="11" class="mb-1.5" />
         </h1>
-        <h1 v-else class="text-display-lg font-titres text-sauge-fonce">
+        <h1 v-else class="pr-[5.5rem] text-display-lg font-titres text-sauge-fonce">
           <span class="flex items-center gap-2">
-            Bonjour
+            Bonjour {{ firstName }}&nbsp;!
             <AccentStroke :height="11" class="mb-1.5" />
           </span>
-          <span class="block">{{ firstName }}&nbsp;!</span>
         </h1>
         <img
           v-if="!vueVide"
