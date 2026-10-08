@@ -43,6 +43,9 @@ export default defineConfig({
         // Les illustrations importées depuis src/assets doivent être disponibles hors ligne.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         navigateFallback: '/index.html',
+        // Sans ce nettoyage, un déploiement laisse l'ancien précache en place et
+        // l'onglet ouvert réclame des chunks qui n'existent plus.
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

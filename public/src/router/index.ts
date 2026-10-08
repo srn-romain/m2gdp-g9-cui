@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { estErreurDeChunk, rechargerUneFois } from '@/lib/chunkReload';
 import { useAuthStore } from '@/stores/auth';
 
 const routes = [
@@ -27,6 +28,12 @@ const routes = [
 ];
 
 const router = createRouter({ history: createWebHistory(), routes });
+
+// Une navigation vers un écran dont le chunk a disparu (nouveau déploiement) recharge
+// la page au lieu d'afficher une erreur.
+router.onError((erreur) => {
+  if (estErreurDeChunk(erreur)) rechargerUneFois();
+});
 
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();

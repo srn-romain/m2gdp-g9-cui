@@ -4,7 +4,19 @@
     {
       "target": "app",
       "public": "public/dist",
-      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+      "rewrites": [{ "source": "**", "destination": "/index.html" }],
+      "headers": [
+        {
+          "comment": "HTML et service worker : toujours revalider, sinon un onglet garde l'ancien index et demande des chunks supprimés.",
+          "source": "**",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "comment": "Les fichiers d'assets portent une empreinte : ils peuvent être mis en cache très longtemps.",
+          "source": "/assets/**",
+          "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+        }
+      ]
     }
   ],
   "firestore": { "rules": "firestore.rules" },
