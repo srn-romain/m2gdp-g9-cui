@@ -17,8 +17,12 @@ info:
     - Les énumérations sont en UPPER_SNAKE, les champs en camelCase.
     - Les identifiants sont en anglais, les libellés affichés restent en français.
 
+    Médias : photo de profil, image de message et message vocal passent par
+    `POST /avatar/presign`, puis par l'URL d'envoi renvoyée (R2 présigné ou `PUT /avatar`).
+    Ils sont relus publiquement par `GET /avatar?key=…`, sous une clé imprévisible.
+
     Hors périmètre de cette version : avis et notes, recettes, favoris, notifications,
-    météo, envoi de médias, gestion d'une tablée par son hôte.
+    météo, gestion d'une tablée par son hôte.
   license:
     name: Projet étudiant — usage interne
 
@@ -39,6 +43,8 @@ tags:
     description: "Rejoindre ou quitter une tablée, avec la contribution associée."
   - name: Messages
     description: "Fil de discussion d'une tablée."
+  - name: Médias
+    description: "Photo de profil, image de message et message vocal (stockage R2)."
 
 security:
   - bearerAuth: []
@@ -356,6 +362,102 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /avatar/presign:
+    post:
+      tags: [Médias]
+      operationId: presignMedia
+      summary: Préparer l'envoi d'un média
+      description: |
+        Renvoie la clé de stockage et l'URL d'envoi. Quand des identifiants S3 sont
+        configurés, l'URL est présignée vers R2 ; sinon c'est l'API qui sert de cible
+        (`PUT /avatar?key=…`). La clé est imprévisible et préfixée par l'auteur
+        (`avatars/{userId}/…` ou `messages/{userId}/…`), donc non partageable par devinette.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaPresignRequest'
+      responses:
+        '200':
+          description: Clé et URL d'envoi, valables 10 minutes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUpload'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /avatar:
+    put:
+      tags: [Médias]
+      operationId: uploadMedia
+      summary: Envoyer un média (repli sans URL présignée)
+      description: "Cible de l'URL renvoyée par `POST /avatar/presign` quand R2 n'est pas présignable. Authentification obligatoire."
+      parameters:
+        - $ref: '#/components/parameters/MediaKey'
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema: { type: string, format: binary }
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/webp:
+            schema: { type: string, format: binary }
+          audio/webm:
+            schema: { type: string, format: binary }
+          audio/mp4:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Média stocké.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [key]
+                properties:
+                  key:
+                    type: string
+                    example: "avatars/5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10/photo.jpg"
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    get:
+      tags: [Médias]
+      operationId: readMedia
+      summary: Lire un média
+      description: |
+        Lecture publique : la clé est imprévisible et une balise `<img>` n'envoie pas
+        d'en-tête `Authorization`. C'est l'URL stockée dans `User.avatarUrl`,
+        `Message.imageUrl` et `Message.audioUrl`.
+      parameters:
+        - $ref: '#/components/parameters/MediaKey'
+      responses:
+        '200':
+          description: Contenu du média.
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/webp:
+              schema: { type: string, format: binary }
+            audio/webm:
+              schema: { type: string, format: binary }
+            audio/mp4:
+              schema: { type: string, format: binary }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
 
   securitySchemes:
@@ -366,6 +468,15 @@ components:
       description: "Jeton d'accès renvoyé par POST /auth/sessions, valable 1 heure."
 
   parameters:
+    MediaKey:
+      name: key
+      in: query
+      required: true
+      description: "Clé du média, préfixée par `avatars/{userId}/` ou `messages/{userId}/`."
+      schema:
+        type: string
+        maxLength: 512
+        example: "avatars/5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10/photo.jpg"
     TableId:
       name: tableId
       in: path
@@ -691,6 +802,45 @@ components:
     MessageType:
       type: string
       enum: [TEXT, AUDIO, IMAGE, SYSTEM]
+
+    MediaKind:
+      type: string
+      description: "Usage prévu du média."
+      enum: [avatar, message]
+      default: avatar
+
+    MediaPresignRequest:
+      type: object
+      required: [contentType, size]
+      properties:
+        kind:
+          $ref: '#/components/schemas/MediaKind'
+        contentType:
+          type: string
+          description: "`image/jpeg`, `image/png`, `image/webp`, `audio/webm` ou `audio/mp4`."
+          example: image/jpeg
+        size:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+          description: "Taille en octets, 5 Mo maximum."
+          example: 182400
+
+    MediaUpload:
+      type: object
+      required: [key, uploadUrl, expiresIn]
+      properties:
+        key:
+          type: string
+          example: "avatars/5a9c0f77-1d34-4b8e-9a02-6e7f1b2c9d10/photo.jpg"
+        uploadUrl:
+          type: string
+          description: "URL d'envoi : présignée vers R2, ou `PUT /avatar?key=…` en repli."
+          example: "https://9910d4dd.r2.cloudflarestorage.com/labonnetablee-files/avatars/…"
+        expiresIn:
+          type: integer
+          description: "Durée de validité en secondes."
+          example: 600
 
     UserSummary:
       type: object

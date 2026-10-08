@@ -50,6 +50,7 @@ classDiagram
         +boolean isVegetarian
         +boolean hasAllergenNotice
         +Location location
+        +List~WantedContribution~ wantedContributions
         +Instant createdAt
     }
 
@@ -82,6 +83,13 @@ classDiagram
         +ContributionStatus status
     }
 
+    class WantedContribution {
+        <<ValueObject>>
+        +String label
+        +Decimal quantity
+        +QuantityUnit unit
+    }
+
     class Message {
         +UUID id
         +UUID tableId
@@ -89,6 +97,7 @@ classDiagram
         +MessageType type
         +String text
         +String audioUrl
+        +String imageUrl
         +int durationSeconds
         +Instant sentAt
     }
@@ -97,6 +106,7 @@ classDiagram
     User "1" --> "0..*" Participation : participe
     Table "1" *-- "1..*" Participation : rassemble
     Participation "1" *-- "0..1" Contribution : déclare
+    Table "1" *-- "0..*" WantedContribution : propose
     Table "1" *-- "0..*" Message : contient
     User "1" --> "0..*" Message : écrit
     Table "1" --> "1" Location : se tient à
@@ -109,6 +119,10 @@ Lecture des relations :
 - `Participation *-- Contribution` est une composition avec multiplicité `0..1` : un
   participant peut ne rien apporter (« Je ne fais pas les courses »), il ne peut pas
   apporter deux choses distinctes dans le scénario minimal.
+- `Table *-- WantedContribution` est une **composition** d'objets-valeurs : la liste de
+  courses proposée par l'hôte (« Courgettes 4 », « Riz arborio 500 g »). Elle n'est
+  rattachée à aucune participation — c'est une suggestion que les invités s'approprient
+  en rejoignant, à la différence d'une `Contribution` (cf. R5 et R12).
 - `Location` est un **objet-valeur** embarqué, pas une entité : il n'a pas d'identité propre
   et se modifie avec la tablée.
 
@@ -124,7 +138,7 @@ Lecture des relations :
 | `lastName` | String(80) | non nul | « Martin » |
 | `neighborhood` | String(80) | non nul | « Lyon 7e », sert au calcul des distances |
 | `city` | String(80) | non nul | « Lyon » |
-| `coordinates` | Coordinates | non nul | Latitude et longitude du quartier, approximatives |
+| `coordinates` | Coordinates | nullable | Latitude et longitude du quartier. Renseignées dès que l'adresse est connue (autocomplétion d'adresse) |
 | `dietaryPreferences` | DietaryPreference[] | non nul, défaut `[]` | « Végétarien », « Sans porc » |
 | `avatarUrl` | String(2048) | nullable | |
 | `status` | AccountStatus | non nul, défaut `ACTIVE` | |
@@ -148,6 +162,7 @@ Lecture des relations :
 | `isVegetarian` | boolean | non nul, défaut `false` | Affiche l'étiquette « Végétarien » |
 | `hasAllergenNotice` | boolean | non nul, défaut `false` | Affiche « Allergènes indiqués » |
 | `location` | Location | non nul, embarqué | |
+| `wantedContributions` | WantedContribution[] | non nul, défaut `[]`, max 20 | Liste de courses proposée par l'hôte. Filtre « régime » : `isVegetarian` |
 | `createdAt` | Instant | non nul | |
 
 ### Location, objet-valeur embarqué dans Table
@@ -187,6 +202,17 @@ tablées ».
 | `category` | ContributionCategory | non nul | `APPETIZER`, `MAIN`, `DESSERT`, `DRINK`, `INGREDIENT`, `NONE` |
 | `status` | ContributionStatus | non nul, défaut `PROPOSED` | |
 
+### WantedContribution, objet-valeur embarqué dans Table
+
+Ingrédient que l'hôte propose d'apporter. Objet-valeur sans identité : il vit et meurt
+avec sa tablée, et n'est rattaché à aucune participation.
+
+| Champ | Type | Contraintes | Description |
+|---|---|---|---|
+| `label` | String(120) | non nul | « Courgettes », « Riz arborio » |
+| `quantity` | Decimal | nullable, `> 0` | Nul si la quantité n'est pas précisée |
+| `unit` | QuantityUnit | nullable | `KG`, `G`, `L`, `CL`, `UNIT`, `PORTION` |
+
 ### Message
 
 | Champ | Type | Contraintes | Description |
@@ -194,9 +220,10 @@ tablées ».
 | `id` | UUID | clé primaire | |
 | `tableId` | UUID | clé étrangère vers `Table.id`, non nul, indexé | |
 | `authorId` | UUID | clé étrangère vers `User.id`, non nul | |
-| `type` | MessageType | non nul | `TEXT`, `AUDIO`, `SYSTEM` |
+| `type` | MessageType | non nul | `TEXT`, `AUDIO`, `IMAGE`, `SYSTEM` |
 | `text` | String(2000) | nullable | Obligatoire si `type = TEXT` |
 | `audioUrl` | String(2048) | nullable | Obligatoire si `type = AUDIO` |
+| `imageUrl` | String(2048) | nullable | Obligatoire si `type = IMAGE` |
 | `durationSeconds` | int | nullable | Renseigné si `type = AUDIO` |
 | `sentAt` | Instant | non nul, indexé en ordre décroissant | Tri du fil |
 
@@ -212,7 +239,7 @@ tablées ».
 | `ParticipationStatus` | `CONFIRMED`, `CANCELLED`, `ATTENDED`, `NO_SHOW` | `PENDING` réservé pour une future validation par l'hôte |
 | `ContributionCategory` | `APPETIZER`, `MAIN`, `DESSERT`, `DRINK`, `INGREDIENT`, `NONE` | `NONE` = « Je ne fais pas les courses » |
 | `ContributionStatus` | `PROPOSED`, `CONFIRMED`, `BROUGHT` | |
-| `MessageType` | `TEXT`, `AUDIO`, `SYSTEM` | `SYSTEM` pour « Bernard a rejoint la tablée » |
+| `MessageType` | `TEXT`, `AUDIO`, `IMAGE`, `SYSTEM` | `SYSTEM` pour « Bernard a rejoint la tablée », `IMAGE` pour une photo partagée |
 
 ## Règles métier et invariants
 
@@ -229,6 +256,9 @@ tablées ».
 | R9 | L'hôte ne peut pas quitter sa propre tablée (`409 HOST_CANNOT_LEAVE`) : il doit l'annuler, ce qui bascule toutes les participations en `CANCELLED`. |
 | R10 | Passé `startsAt + durationMinutes`, la tablée devient `PASSED`. Aucune donnée n'est supprimée physiquement : l'historique « Passées » et les fils de discussion restent consultables. |
 | R11 | L'hôte peut annuler sa tablée. Un invité ne peut modifier que sa propre contribution et sa propre participation. |
+| R12 | `Table.wantedContributions` est une liste de courses indicative : elle n'est rattachée à aucune participation et n'engage personne. Ce qui est réellement apporté reste une `Contribution` liée à une `Participation` (cf. R5) et alimente « Ce que chacun apporte ». |
+| R13 | Les médias (photo de profil, image de message, message vocal) sont stockés dans R2 sous une clé imprévisible et servis par l'API : `avatarUrl`, `imageUrl` et `audioUrl` pointent vers `GET /avatar?key=…`. L'écriture n'est permise que sous `avatars/{userId}/` ou `messages/{userId}/`. |
+| R14 | `GET /tables` accepte `lat`/`lng` : sans point de départ connu, aucun filtre de rayon ni tri par distance ne s'applique (repli sur le tri par date). |
 
 ## Diagrammes d'états
 
