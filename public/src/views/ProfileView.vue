@@ -3,6 +3,7 @@ import { Camera, ChevronRight, Leaf, LogOut, MapPin, Utensils } from '@lucide/vu
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
+import illustration from '@/assets/bonjour.png';
 import AddressField from '@/components/AddressField.vue';
 import AppBar from '@/components/AppBar.vue';
 import InstallAppCard from '@/components/InstallAppCard.vue';
@@ -198,7 +199,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <MascotBubble text="Tout est au même endroit !" pose="cheer" :size="92" />
+        <MascotBubble text="Tout est au même endroit !" :image="illustration" :size="104" />
 
         <InstallAppCard />
 

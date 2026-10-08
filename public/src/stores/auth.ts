@@ -8,6 +8,10 @@ import { createSession, requestMagicLink, setAccessTokenProvider } from '@/lib/a
 import { DEMO_MODE, DEMO_USER } from '@/lib/mock';
 
 export const useAuthStore = defineStore('auth', () => {
+  // En mode démo, la session est fictive : on la garde en localStorage pour qu'un
+  // rafraîchissement de page ne déconnecte pas (comportement réel de Firebase en prod).
+  const CLE_SESSION_DEMO = 'lbt.demoSession';
+
   const user = ref<FirebaseUser | null>(null);
   const isNewUser = ref(false);
   const loading = ref(true);
@@ -25,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (DEMO_MODE) {
       await new Promise((resolve) => setTimeout(resolve, 400));
       user.value = { uid: DEMO_USER.id, email } as FirebaseUser;
+      window.localStorage.setItem(CLE_SESSION_DEMO, email);
       return;
     }
     // 202 systématique côté serveur : la réponse ne dit jamais si l'adresse est connue,
@@ -56,6 +61,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     if (DEMO_MODE) {
+      window.localStorage.removeItem(CLE_SESSION_DEMO);
       user.value = null;
       accessToken.value = null;
       return;
@@ -67,10 +73,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   function initAuthListener() {
     setAccessTokenProvider(getToken);
-    // Mode démo : aucune connexion Firebase. On reste déconnecté au départ pour
-    // pouvoir relire les écrans d'accès, puis le CTA ouvre la session fictive.
+    // Mode démo : aucune connexion Firebase. La session fictive est restaurée si elle
+    // existe déjà, sinon on démarre déconnecté pour pouvoir relire les écrans d'accès.
     if (DEMO_MODE) {
-      user.value = null;
+      const email = window.localStorage.getItem(CLE_SESSION_DEMO);
+      user.value = email ? ({ uid: DEMO_USER.id, email } as FirebaseUser) : null;
       loading.value = false;
       ready.value = true;
       return;
