@@ -71,6 +71,27 @@ export async function userSummary(db: D1Database, userId: string) {
   };
 }
 
+export interface MessageRow {
+  id: string; tableId: string; authorId: string; type: string;
+  text: string | null; audioUrl: string | null; imageUrl: string | null;
+  durationSeconds: number | null; sentAt: string;
+}
+
+/** Un message est toujours renvoyé avec son auteur (le fil affiche qui parle). */
+export async function toMessageJson(db: D1Database, row: MessageRow) {
+  return {
+    id: row.id,
+    tableId: row.tableId,
+    author: await userSummary(db, row.authorId),
+    type: row.type,
+    text: row.text,
+    audioUrl: row.audioUrl,
+    imageUrl: row.imageUrl,
+    durationSeconds: row.durationSeconds,
+    sentAt: row.sentAt,
+  };
+}
+
 /** « Ce que chacun apporte », hôte compris : les contributions des participants confirmés. */
 export async function tableContributions(db: D1Database, tableId: string) {
   const rows = await db.prepare(

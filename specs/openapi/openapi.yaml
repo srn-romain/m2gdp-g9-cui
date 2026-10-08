@@ -690,7 +690,7 @@ components:
 
     MessageType:
       type: string
-      enum: [TEXT, AUDIO, SYSTEM]
+      enum: [TEXT, AUDIO, IMAGE, SYSTEM]
 
     UserSummary:
       type: object
@@ -1117,6 +1117,10 @@ components:
           type: [string, 'null']
           format: uri
           description: "Renseigné si `type = AUDIO`."
+        imageUrl:
+          type: [string, 'null']
+          format: uri
+          description: "Renseigné si `type = IMAGE`."
         durationSeconds:
           type: [integer, 'null']
           minimum: 0
