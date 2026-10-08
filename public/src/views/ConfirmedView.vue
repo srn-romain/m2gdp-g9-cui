@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import Mascot from '@/components/Mascot.vue';
+import illustration from '@/assets/bonjour.png';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getTable } from '@/lib/api';
@@ -35,7 +35,7 @@ onMounted(async () => {
 <template>
   <div class="app-pad flex flex-1 flex-col gap-5 pt-10 pb-8">
     <div class="flex justify-center">
-      <Mascot pose="cheer" :size="132" with-buddy />
+      <img :src="illustration" alt="" class="w-36 max-w-full" />
     </div>
 
     <h1 class="text-center text-display-lg font-titres text-sauge">C'est confirmé&nbsp;!</h1>
