@@ -1,0 +1,3 @@
+const modal=document.querySelector('#modal');
+if(modal){const output=modal.querySelector('img');document.querySelectorAll('.screen').forEach(card=>card.addEventListener('click',()=>{const pic=card.querySelector('img');if(pic){output.src=pic.src;output.alt=pic.alt;modal.classList.add('open')}}));modal.addEventListener('click',event=>{if(event.target===modal||event.target.tagName==='BUTTON')modal.classList.remove('open')});document.addEventListener('keydown',event=>{if(event.key==='Escape')modal.classList.remove('open')})}
+const siteNavigation=document.createElement('script');siteNavigation.src='site-nav.js?v=dossier-nav-4';document.head.append(siteNavigation);

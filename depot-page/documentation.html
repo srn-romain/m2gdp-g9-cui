@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Documentation — La Bonne Tablée</title>
+<link rel="icon" type="image/png" href="assets/mijote-icon-transparent.png?v=mijote-transparent-1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chewy&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="topbar">
+<a class="brand" href="index.html">
+<img src="assets/logo.png" alt="La Bonne Tablée">
+</a>
+<nav class="nav">
+<a href="index.html">Accueil</a>
+<a href="projet.html">Projet</a>
+<a href="design.html">Design</a>
+<a href="parcours.html">Parcours</a>
+<a href="produit.html">Produit</a>
+<a class="active" href="documentation.html">Documentation</a>
+</nav>
+</header>
+<main>
+<section class="shell page-head">
+<div class="kicker">Recherche utilisateur</div>
+<h1>Des besoins<br>
+<span>qui guident le produit.</span>
+</h1>
+<p>Les documents de recherche sont ici transformés en une consultation dynamique : chaque profil et chaque étape du scénario peuvent être explorés directement.</p>
+</section>
+<section class="section">
+<div class="shell">
+<div class="section-head">
+<div>
+<div class="kicker">Personas</div>
+<h2>Trois regards, un même besoin de lien.</h2>
+</div>
+<p>Chaque profil peut recevoir comme participer à une tablée : aucun rôle n’est définitivement attribué.</p>
+</div>
+<div class="persona-app" data-persona-app>
+<div class="persona-tabs" role="tablist" aria-label="Choisir un persona">
+<button class="persona-tab active" role="tab" aria-selected="true" data-persona="bernard">
+<b>Bernard</b>
+<span>67 ans · Lyon</span>
+</button>
+<button class="persona-tab" role="tab" aria-selected="false" data-persona="camille">
+<b>Camille</b>
+<span>29 ans · Lyon</span>
+</button>
+<button class="persona-tab" role="tab" aria-selected="false" data-persona="yanis">
+<b>Yanis</b>
+<span>22 ans · Lyon</span>
+</button>
+</div>
+<article class="persona-panel active" data-persona-panel="bernard">
+<div class="persona-top">
+<div class="avatar"><img src="assets/portrait-bernard.png" alt="Portrait de Bernard"></div>
+<div>
+<h3>Bernard, le passeur de recettes</h3>
+<p>Ancien enseignant, il vit seul à Lyon. Les échanges du quotidien lui manquent et il souhaite rencontrer des voisins de toutes générations.</p>
+<span class="role">Hôte et invité</span>
+</div>
+</div>
+<div class="insight-grid">
+<div class="insight">
+<b>Objectif</b>
+<p>Partager régulièrement des repas et créer de nouvelles habitudes conviviales.</p>
+</div>
+<div class="insight">
+<b>Motivation</b>
+<p>Transmettre ses recettes et retrouver le plaisir de cuisiner à plusieurs.</p>
+</div>
+<div class="insight">
+<b>Frein</b>
+<p>Accueillir des inconnus et devoir gérer une organisation compliquée.</p>
+</div>
+<div class="insight">
+<b>Attente</b>
+<p>Profils rassurants, petits groupes, contributions claires et repas accessibles à pied.</p>
+</div>
+</div>
+<div class="quote-box">« Mes recettes sont faites pour être partagées, pas pour rester dans un carnet. »</div>
+</article>
+<article class="persona-panel" data-persona-panel="camille">
+<div class="persona-top">
+<div class="avatar terracotta"><img src="assets/portrait-camille.png" alt="Portrait de Camille"></div>
+<div>
+<h3>Camille, l’hôte passionnée</h3>
+<p>Graphiste à Lyon, elle aime tester de nouvelles recettes mais ses proches ne sont pas toujours disponibles pour partager ses repas.</p>
+<span class="role">Hôte et invitée</span>
+</div>
+</div>
+<div class="insight-grid">
+<div class="insight">
+<b>Objectif</b>
+<p>Partager sa passion et rencontrer ses voisins en accueillant une petite tablée.</p>
+</div>
+<div class="insight">
+<b>Motivation</b>
+<p>Faire plaisir, découvrir d’autres habitudes culinaires et partager les frais.</p>
+</div>
+<div class="insight">
+<b>Frein</b>
+<p>Recevoir des inconnus, subir des désistements ou gérer seule les allergies.</p>
+</div>
+<div class="insight">
+<b>Attente</b>
+<p>Profils rassurants, nombre de places maîtrisé, allergies et contributions définies.</p>
+</div>
+</div>
+<div class="quote-box">« J’adore cuisiner pour les autres, mais je veux que l’organisation reste simple. »</div>
+</article>
+<article class="persona-panel" data-persona-panel="yanis">
+<div class="persona-top">
+<div class="avatar gold"><img src="assets/portrait-yanis.png" alt="Portrait de Yanis"></div>
+<div>
+<h3>Yanis, l’étudiant au budget serré</h3>
+<p>Étudiant vivant en colocation à Lyon, il recherche une alternative aux repas répétitifs et aux sorties trop coûteuses.</p>
+<span class="role">Participant et futur hôte</span>
+</div>
+</div>
+<div class="insight-grid">
+<div class="insight">
+<b>Objectif</b>
+<p>Bien manger à petit prix tout en faisant des rencontres.</p>
+</div>
+<div class="insight">
+<b>Motivation</b>
+<p>Découvrir des plats maison, apprendre à cuisiner et sortir de sa routine.</p>
+</div>
+<div class="insight">
+<b>Frein</b>
+<p>Contribution trop élevée, frais imprévus ou repas trop éloignés.</p>
+</div>
+<div class="insight">
+<b>Attente</b>
+<p>Coût ou apport annoncé à l’avance, repas proches et réservation rapide.</p>
+</div>
+</div>
+<div class="quote-box">« Je veux partager un bon repas sans exploser mon budget. »</div>
+</article>
+</div>
+</div>
+</section>
+<section class="section">
+<div class="shell">
+<div class="section-head">
+<div>
+<div class="kicker">Storyboard</div>
+<h2>Le scénario de Bernard, étape par étape.</h2>
+</div>
+<p>Une situation concrète pour faire passer l’idée de service à l’expérience vécue.</p>
+</div>
+<div class="story-app" data-story-app>
+<div class="story-tabs" role="tablist" aria-label="Étapes du storyboard">
+<button class="story-tab active" data-story="1">
+<b>01</b>
+<span>Besoin</span>
+</button>
+<button class="story-tab" data-story="2">
+<b>02</b>
+<span>Freins</span>
+</button>
+<button class="story-tab" data-story="3">
+<b>03</b>
+<span>Envie</span>
+</button>
+<button class="story-tab" data-story="4">
+<b>04</b>
+<span>Découverte</span>
+</button>
+<button class="story-tab" data-story="5">
+<b>05</b>
+<span>Réservation</span>
+</button>
+<button class="story-tab" data-story="6">
+<b>06</b>
+<span>Repas partagé</span>
+</button>
+</div>
+<article class="story-panel active" data-story-panel="1">
+<figure class="story-scene"><img src="assets/story-01-besoin.png" alt="Étape 1 : Bernard ressent le besoin de partager ses repas"><figcaption>01 · Besoin</figcaption></figure>
+<div class="story-copy">
+<h3>Le besoin</h3>
+<p>Bernard aimerait partager ses repas et rencontrer ses voisins. Il a envie de cuisiner pour d’autres, sans savoir encore comment s’y prendre.</p>
+<div class="result">Un besoin de lien social autour d’un geste familier : cuisiner.</div>
+</div>
+</article>
+<article class="story-panel" data-story-panel="2">
+<figure class="story-scene"><img src="assets/story-02-freins.png" alt="Étape 2 : Bernard hésite à rejoindre des inconnus"><figcaption>02 · Freins</figcaption></figure>
+<div class="story-copy">
+<h3>Les freins</h3>
+<p>Il hésite à rejoindre des inconnus et craint une organisation trop compliquée. La confiance et la clarté doivent être visibles avant toute réservation.</p>
+<div class="result">Réponse produit : profils, informations précises et contributions explicites.</div>
+</div>
+</article>
+<article class="story-panel" data-story-panel="3">
+<figure class="story-scene"><img src="assets/story-03-envie.png" alt="Étape 3 : Bernard imagine une petite tablée conviviale"><figcaption>03 · Envie</figcaption></figure>
+<div class="story-copy">
+<h3>L’envie</h3>
+<p>Bernard imagine une petite tablée conviviale, proche de chez lui et abordable. Il ne cherche pas un événement, mais une rencontre simple.</p>
+<div class="result">Réponse produit : petits groupes de quartier et repas du quotidien.</div>
+</div>
+</article>
+<article class="story-panel" data-story-panel="4">
+<figure class="story-scene"><img src="assets/story-04-decouverte.png" alt="Étape 4 : Bernard découvre des repas proches dans l’application"><figcaption>04 · Découverte</figcaption></figure>
+<div class="story-copy">
+<h3>La découverte</h3>
+<p>Sur La Bonne Tablée, Bernard visualise les repas proches, les profils et les avis. Il peut ainsi comparer et choisir ce qui lui convient.</p>
+<div class="result">Réponse produit : carte, liste et fiche tablée rassurante.</div>
+</div>
+</article>
+<article class="story-panel" data-story-panel="5">
+<figure class="story-scene"><img src="assets/story-05-reservation.png" alt="Étape 5 : Bernard réserve sa place et choisit sa contribution"><figcaption>05 · Réservation</figcaption></figure>
+<div class="story-copy">
+<h3>La réservation</h3>
+<p>Il réserve une place et sait exactement ce qu’il doit apporter. La contribution devient un geste clair, sans pression ni surprise.</p>
+<div class="result">Réponse produit : ingrédients, aide ou don à sélectionner simplement.</div>
+</div>
+</article>
+<article class="story-panel" data-story-panel="6">
+<figure class="story-scene"><img src="assets/story-06-repas-partage.png" alt="Étape 6 : Bernard partage le repas avec ses voisins"><figcaption>06 · Repas partagé</figcaption></figure>
+<div class="story-copy">
+<h3>Le repas partagé</h3>
+<p>Bernard fait de nouvelles rencontres et souhaite accueillir la prochaine tablée. Le service crée une continuité entre participation et accueil.</p>
+<div class="result">Un parcours qui construit progressivement confiance et convivialité.</div>
+</div>
+</article>
+</div>
+</div>
+</section>
+</main>
+<footer class="shell footer">
+<img src="assets/logo.png" alt="La Bonne Tablée">
+<div>Projet de conception · La Bonne Tablée.</div>
+</footer>
+<script src="documentation.js">
+</script>
+</body>
+</html>
