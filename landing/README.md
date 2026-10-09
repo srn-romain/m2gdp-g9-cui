@@ -57,15 +57,7 @@ Rappel des prérequis : `firebase login` (fait) et projet `labonnetablee-cb767` 
 - Roadmap GitHub : <https://github.com/users/srn-romain/projects/2/views/1>
 - Dépôt : <https://github.com/srn-romain/m2gdp-g9-cui>
 
-## Points d'attention
-
-- Ce dossier a **remplacé la vitrine** sur la cible `landing` (commit `2c2ab78`). L'ancienne
-  vitrine n'existe plus que dans l'historique :
-
-  ```sh
-  git show 46adc86:landing/index.html > landing/index.html   # restaurer la vitrine
-  git checkout HEAD -- landing/index.html                    # remettre le dossier
-  ```
+## Reste à faire
 
 - La carte « Site vitrine » de `produit.html` pointe encore vers cette même URL, devenue le
   dossier lui-même — à supprimer ou repointer.
