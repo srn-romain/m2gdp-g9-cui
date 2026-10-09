@@ -1,99 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>La Bonne Tablee — Partage de repas entre voisins</title>
-    <meta name="description"
-          content="La Bonne Tablee : decouvrez des tablees pres de chez vous, rejoignez-les et partagez un repas entre voisins."/>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-normalize@3.0.1/modern-normalize.min.css"/>
-    <style>
-        :root {
-            --creme: #FAF7F2;
-            --terracotta: #DB5A3B;
-            --sauge: #5B8266;
-            --ardoise: #2B2B2B;
-        }
-
-        body {
-            background: var(--creme);
-            color: var(--ardoise);
-            font-family: "DM Sans", system-ui, sans-serif;
-            margin: 0;
-        }
-
-        .wrap {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 48px 24px;
-        }
-
-        h1 {
-            font-family: Chewy, "Comic Sans MS", cursive;
-            font-weight: 400;
-            font-size: 40px;
-            color: var(--sauge);
-            margin: 0 0 12px;
-        }
-
-        p.lead {
-            font-size: 18px;
-            line-height: 1.5;
-        }
-
-        .cta {
-            display: inline-block;
-            margin-top: 24px;
-            background: var(--terracotta);
-            color: var(--creme);
-            padding: 14px 28px;
-            border-radius: 999px;
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            margin-top: 40px;
-        }
-
-        .card {
-            background: #fff;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 12px rgba(43, 43, 43, .08);
-        }
-
-        .card h2 {
-            font-size: 18px;
-            margin: 0 0 8px;
-        }
-
-        footer {
-            margin-top: 48px;
-            font-size: 13px;
-            opacity: .7;
-        }
-    </style>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Dossier de projet de La Bonne Tablée.">
+  <title>La Bonne Tablée — Dossier de projet</title><link rel="icon" type="image/png" href="assets/mijote-icon-transparent.png?v=mijote-transparent-1">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chewy&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="wrap">
-    <h1>La Bonne Tablee</h1>
-    <p class="lead">Decouvrez des tablees pres de chez vous, choisissez ce que vous apportez, rejoignez-les et echangez
-        avec le groupe.</p>
-    <a class="cta" href="https://labonnetablee.web.app">Explorer les tablees</a>
-    <div class="grid">
-        <div class="card"><h2>Pres de chez vous</h2>
-            <p>Des repas partages dans votre quartier, a Lyon 7e et ailleurs.</p></div>
-        <div class="card"><h2>Sans mot de passe</h2>
-            <p>Connexion par lien magique envoye par e-mail. Simple et sur.</p></div>
-        <div class="card"><h2>Chacun apporte</h2>
-            <p>Indiquez votre contribution ou venez les mains libres.</p></div>
-    </div>
-    <footer>Site vitrine statique — cible hosting <code>landing</code>. L'application est hebergee sur la cible <code>app</code>.
-    </footer>
-</main>
+  <header class="topbar"><a class="brand" href="index.html"><img src="assets/logo.png" alt="La Bonne Tablée"></a><nav class="nav" aria-label="Navigation du dossier"></nav></header>
+  <main>
+    <section class="shell hero">
+      <div>
+        <span class="eyebrow">Dossier de rendu · M2CIM 2026</span>
+        <h1>La Bonne<br><span>Tablée.</span></h1>
+        <p class="intro">Ce dossier rassemble les livrables du projet : cadrage, recherche utilisateur, conception, prototype et pilotage produit.</p>
+        <div class="buttons"><a class="button primary" href="https://labonnetablee.web.app" target="_blank" rel="noopener noreferrer">Voir la démo</a><a class="button secondary" href="pilotage.html">Voir la roadmap</a></div>
+      </div>
+      <figure class="hero-video">
+        <video controls preload="metadata" poster="assets/video-cover.png"><source src="assets/presentation-bonne-tablee.mp4" type="video/mp4">Votre navigateur ne peut pas lire cette vidéo.</video>
+        <figcaption><b>Vidéo de présentation</b>Le concept, le parcours et l’expérience proposée.</figcaption>
+      </figure>
+    </section>
+    <section class="shell metrics">
+      <div class="metric"><b>04</b><span>membres dans l’équipe projet</span></div>
+      <div class="metric"><b>07</b><span>EPICs suivis dans la roadmap</span></div>
+      <div class="metric"><b>02</b><span>scénarios : minimal et cible</span></div>
+    </section>
+    <section class="section"><div class="shell">
+      <div class="section-head"><div><div class="kicker">Livrables à consulter</div><h2>Le dossier, par attendus.</h2></div><p>Chaque rubrique regroupe les éléments nécessaires pour évaluer le projet, sans reproduire le site vitrine.</p></div>
+      <div class="grid4">
+        <a class="card" href="projet.html"><div class="kicker">01 · Cadrage</div><h3>Projet & canvases</h3><p>Équipe, Lean Canvas et proposition de valeur.</p></a>
+        <a class="card" href="documentation.html"><div class="kicker">02 · Recherche & UX</div><h3>Utilisateurs & parcours</h3><p>Personas, storyboard, Value Proposition Canvas et User Journey.</p></a>
+        <a class="card" href="produit.html"><div class="kicker">03 · Produit</div><h3>Prototype & démo</h3><p>Application, site vitrine et scénarios réellement démontrés.</p></a>
+        <a class="card" href="pilotage.html"><div class="kicker">04 · Roadmap</div><h3>Roadmap & scénarios</h3><p>Priorités, statuts, scénarios minimal et cible.</p></a>
+      </div>
+    </div></section>
+  </main>
+  <footer class="shell footer"><img src="assets/logo.png" alt="La Bonne Tablée"><div>Dossier de projet · M2CIM 2026.</div></footer>
+  <script src="site-nav.js?v=dossier-nav-7"></script>
 </body>
 </html>
