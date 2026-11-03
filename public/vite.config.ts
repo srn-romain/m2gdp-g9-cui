@@ -2,14 +2,16 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import path from 'node:path';
+
+// Alias résolu sans dépendre de Node : évite d'ajouter @types/node pour la CI.
+const srcPath = decodeURIComponent(new URL('./src', import.meta.url).pathname);
 
 export default defineConfig({
   root: '.',
   publicDir: 'static',
   build: { outDir: 'dist', emptyOutDir: true },
   server: { port: 5173 },
-  resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
+  resolve: { alias: { '@': srcPath } },
   plugins: [
     vue(),
     tailwindcss(),
