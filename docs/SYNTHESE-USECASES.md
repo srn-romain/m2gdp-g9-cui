@@ -20,11 +20,11 @@
 | 3 | Authentification & Profil | 🔒 CLOSED | ✅ Done | 🧪 Testée (via #4) |
 | 4 | Lien magique par email | 🔒 CLOSED | ✅ Done (Supabase, durée 1 h) | 🧪 Testée |
 | 5 | Accueil & Découverte | OPEN | ⚠️ Partiel (accueil + explorateur OK) | 🧪 Testée |
-| 6 | Publication d'un repas (Hôte) | OPEN | ✅ Done | 🧪 Testée (via #9) |
+| 6 | Publication d'un repas (Hôte) | 🔒 CLOSED | ✅ Done | 🧪 Testée (via #9) |
 | 7 | Recherche & Filtres | OPEN | ✅ Done | 🧪 Testée (via #10) |
 | 8 | Réservation & Organisation | OPEN | ✅ Done | 🧪 Testée (via #11) |
-| 9 | Publier un repas | OPEN | ✅ Done | 🧪 Testée |
-| 10 | Filtrer par date et régimes | OPEN | ✅ Done | 🧪 Testée |
+| 9 | Publier un repas | 🔒 CLOSED | ✅ Done | 🧪 Testée |
+| 10 | Filtrer par date et régimes | 🔒 CLOSED | ✅ Done | 🧪 Testée |
 | 11 | Réserver et proposer sa contribution | OPEN | ⚠️ Partiel (réservation OK, notification hôte absente) | 🧪 Testée |
 | 12 | Identité visuelle & Design System | 🔒 CLOSED | ✅ Done | ➖ Hors e2e |
 | 13 | Identité et charte graphique | 🔒 CLOSED | ✅ Done | ➖ Hors e2e |
@@ -32,13 +32,13 @@
 | 15 | Géolocalisation | OPEN | ⚠️ Partiel | ➖ Hors e2e |
 | 16 | Autocomplétion et carte hôte | OPEN | ✅ Done (API Adresse au lieu de Google Places) | ➖ Hors e2e |
 | 17 | Carte interactive | OPEN | ⚠️ Partiel (pins et rayon OK, mise à jour au déplacement à vérifier) | ➖ Hors e2e |
-| 18 | Gérer et apporter les ingrédients | OPEN | ✅ Done | ➖ Hors e2e |
-| 19 | Météo locale | OPEN | ✅ Done | ➖ Hors e2e (réseau) |
-| 20 | Messagerie & Échanges | OPEN | ✅ Done | 🧪 Testée (via #21) |
-| 21 | Messages et photos | OPEN | ✅ Done (texte, photo, audio) | 🧪 Testée |
+| 18 | Gérer et apporter les ingrédients | 🔒 CLOSED | ✅ Done | ➖ Hors e2e |
+| 19 | Météo locale | 🔒 CLOSED | ✅ Done | ➖ Hors e2e (réseau) |
+| 20 | Messagerie & Échanges | 🔒 CLOSED | ✅ Done | 🧪 Testée (via #21) |
+| 21 | Messages et photos | 🔒 CLOSED | ✅ Done (texte, photo, audio) | 🧪 Testée |
 | 22 | Architecture & Socle PWA | OPEN | ✅ Done | ➖ Hors e2e (validé par CI/build) |
 | 23 | API REST et infra Cloud | OPEN | ✅ Done (Workers, D1, R2) | 🧪 Testée (smoke API) |
-| 24 | PWA installable et CI/CD | OPEN | ⚠️ Partiel (PWA OK, e2e désormais branché en CI) | ➖ Hors e2e (validé par CI/build) |
+| 24 | PWA installable et CI/CD | 🔒 CLOSED | ✅ Done | ➖ Hors e2e (validé par CI/build) |
 
 ## Décisions à trancher
 
