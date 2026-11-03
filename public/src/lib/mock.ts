@@ -1,6 +1,6 @@
 /**
  * Jeu de données de démonstration, activé par VITE_DEMO_MODE=true.
- * Permet de travailler les écrans sans Firebase ni API, et de faire relire le
+ * Permet de travailler les écrans sans Supabase ni API, et de faire relire le
  * design sur un téléphone. À laisser désactivé en production.
  */
 import type { Message, Table, User } from './types';

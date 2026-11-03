@@ -43,7 +43,7 @@ async function submit() {
   const mail = email.value.trim();
   loading.value = true;
   try {
-    // 202 systématique : on ne sait pas ici si l'adresse est déjà connue. La réponse
+    // Supabase envoie le lien sans révéler si l'adresse est déjà connue. La réponse
     // « ce compte existe déjà » arrive après le clic sur le lien, dans AuthFinishView.
     await authStore.sendMagicLink(mail);
     // Sans suggestion retenue, on tente une dernière recherche avant d'enregistrer :

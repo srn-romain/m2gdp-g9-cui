@@ -42,7 +42,7 @@ async function resend() {
         <span v-else>ton adresse e-mail</span>.
       </p>
       <p class="text-body-sm text-secondaire">
-        Il est valable 15 minutes et ne fonctionne qu'une fois.
+        Il est valable 1 heure et ne fonctionne qu'une fois.
       </p>
     </div>
 

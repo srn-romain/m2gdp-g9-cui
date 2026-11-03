@@ -6,7 +6,6 @@ import type {
   Page,
   Participation,
   ParticipationCreate,
-  Session,
   Table,
   TableCreate,
   TableScope,
@@ -116,16 +115,6 @@ export const apiPost = <T>(path: string, body?: unknown, init: FetchOptions = {}
 export const apiPatch = <T>(path: string, body: unknown) =>
   apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 export const apiDelete = <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' });
-
-/** Écran « Bon retour ! ». Répond toujours 202, même si l'adresse est inconnue. */
-export const requestMagicLink = (email: string) =>
-  DEMO_MODE ? Promise.resolve(undefined) : apiPost<void>(`${BASE}/auth/magic-links`, { email }, { auth: false });
-
-/** Échange le jeton du lien magique contre une session d'une heure. */
-export const createSession = (token: string) =>
-  DEMO_MODE
-    ? Promise.resolve({ accessToken: 'demo', tokenType: 'Bearer', expiresIn: 3600 } as Session)
-    : apiPost<Session>(`${BASE}/auth/sessions`, { token }, { auth: false });
 
 export const getMe = () => (DEMO_MODE ? Promise.resolve(DEMO_USER) : apiGet<User>(`${BASE}/me`));
 export const updateMe = (patch: UserUpdate) =>
