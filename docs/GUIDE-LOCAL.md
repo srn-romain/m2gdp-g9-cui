@@ -66,3 +66,12 @@ il purge d'abord ses propres lignes (comptes `seed.*@labonnetablee.test`).
 cd workers
 npx wrangler d1 execute labonnetablee-db --local --file=seed/menus.sql
 ```
+
+`workers/seed/synthetique.sql` est un jeu complementaire plus compact : 12 utilisateurs,
+8 tablees (dont une `FULL` et une `PASSED`), participations, apports, ingredients et
+messages. Il se rejoue de la meme facon :
+
+```sh
+cd workers
+npx wrangler d1 execute labonnetablee-db --local --file=seed/synthetique.sql
+```
