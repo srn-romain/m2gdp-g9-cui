@@ -1,6 +1,5 @@
-# Local uniquement, jamais committe. Prod via `wrangler secret put`.
-FIREBASE_PROJECT_ID=labonnetablee-cb767
+# Local uniquement, jamais committe. Prod via le tableau de bord ou `wrangler secret put`.
+SUPABASE_URL=
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
-FIREBASE_AUTH_EMULATOR=false
