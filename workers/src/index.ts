@@ -18,7 +18,7 @@ app.use('*', cors({
     const allow = ['http://localhost:5173', 'http://localhost:5001', ...extra];
     if (!origin) return origin;
     if (allow.includes(origin)) return origin;
-    if (/^https:\/\/([a-z0-9-]+\.)*web\.app$/.test(origin)) return origin;
+    if (/^https:\/\/([a-z0-9-]+\.)*pages\.dev$/.test(origin)) return origin;
     return null;
   },
 }));
