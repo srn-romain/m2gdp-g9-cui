@@ -3,8 +3,8 @@
 Site statique du **dossier de rendu** (M2CIM 2026) : cadrage, recherche utilisateur,
 conception, prototype et pilotage produit.
 
-Publié par Firebase Hosting via la **cible `landing`** :
-<https://labonnetablee-landing.web.app>
+Publié par Cloudflare Pages via le projet `labonnetablee-landing` :
+<https://labonnetablee-landing.pages.dev>
 
 ## Pages
 
@@ -37,23 +37,21 @@ Publié par Firebase Hosting via la **cible `landing`** :
 ## Aperçu en local
 
 ```sh
-# Depuis la racine du dépôt (là où se trouve firebase.json)
-firebase serve --only hosting:landing     # http://localhost:5001
+# Depuis la racine du dépôt
+npx wrangler pages dev landing --port 8788   # http://localhost:8788
 ```
 
 ## Déploiement
 
 ```sh
-firebase deploy --only hosting:landing
+npx wrangler pages deploy landing --project-name labonnetablee-landing
 ```
 
-Rappel des prérequis : `firebase login` (fait) et projet `labonnetablee-cb767` (lu depuis
-`.firebaserc`). Si la commande `firebase` n'est pas trouvée, utiliser
-`~/.npm-global/bin/firebase` ou ajouter `$HOME/.npm-global/bin` au `PATH`.
+Rappel des prérequis : `wrangler login` et un compte Cloudflare.
 
 ## Liens publiés
 
-- Application (bouton « Voir la démo ») : <https://labonnetablee.web.app>
+- Application (bouton « Voir la démo ») : <https://labonnetablee.pages.dev>
 - Roadmap GitHub : <https://github.com/users/srn-romain/projects/2/views/1>
 - Dépôt : <https://github.com/srn-romain/m2gdp-g9-cui>
 

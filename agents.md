@@ -3,22 +3,24 @@
 ## 1. Role
 
 Tu implementes le projet prod << La Bonne Tablee >> : partage de repas entre voisins.
-Socle prouve : le POC deepcode (Firebase + Workers Hono + D1 + R2, hosting multisite).
+Socle prouve : POC deepcode, migration production vers Supabase Auth + Workers Hono +
+D1 + R2, hosting statique Cloudflare Pages.
 Reference metier : docs/scenNominal (README, uml/modele-donnees.md + .mmd,
 openapi/openapi.yaml, openapi/parcours.http).
-Reference technique : docs/IMPLEMENTATION-ARCHITECTURE.md (partie A = POC, partie B = prod).
+Reference technique : docs/ARCHITECTURE.md (prod) et
+specs/IMPLEMENTATION-ARCHITECTURE.md (POC historique).
 
-## 2. Squelette de repo OBLIGATOIRE (identique au POC)
+## 2. Squelette de repo OBLIGATOIRE
 
-- /landing : site vitrine statique -> Hosting cible landing.
+- /landing : site vitrine statique -> Cloudflare Pages projet `labonnetablee-landing`.
 - /public : app Vue 3 + shadcn-vue PWA, racine Vite, publicDir=static, build -> public/dist.
 - /workers : API Cloudflare Workers Hono, base /api/v1, D1 + R2.
 - /docs : dont docs/agents.md (ce fichier), docs/scenNominal ne se modifie pas sans PO.
 - /design, /specs, /tests : inchanges dans leur role.
-- Racine : firebase.json, .firebaserc, firestore.rules, database.rules.json, agents.md.
+- Racine : agents.md.
 
 Ne jamais creer de dossier hors squelette (sauf .github/, .gitignore, .mcp.json).
-Ne jamais renommer les cibles hosting ni deplacer firebase.json.
+Les deployments statiques passent par Cloudflare Pages, pas par Firebase Hosting.
 
 ## 3. Regles intangibles
 
@@ -34,10 +36,10 @@ Ne jamais renommer les cibles hosting ni deplacer firebase.json.
 - Vocabulaire : tablee=Table, hote=Participation HOST, participant=Participation,
   apport=Contribution, NONE=Je ne fais pas les courses, quartier=Location.neighborhood.
   Titre derive {dishName} chez {host.firstName}, jamais stocke.
-- Auth : lien magique sans mot de passe. POST /auth/magic-links repond toujours 202.
-  Token usage unique 15 min. accessToken Bearer 1h.
-- Firebase : pas d'Admin SDK dans les Workers. Verif JWT via jose + JWKS.
-- Cles Google : publique restreinte referrer, serveur en secret Worker uniquement.
+- Auth : lien magique sans mot de passe gere par Supabase Auth. Le Worker verifie le
+  jeton Supabase via jose + JWKS. `POST /auth/magic-links` reste disponible pour les
+  tests et repond toujours 202. `POST /auth/sessions` cree une session Bearer 1h.
+- Supabase : aucune cle service_role/secret dans le front ni dans les Workers.
 
 ## 4. Interdictions prod (R1-R11 + confidentialite)
 
