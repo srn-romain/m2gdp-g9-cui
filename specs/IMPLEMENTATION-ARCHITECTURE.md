@@ -1,5 +1,8 @@
 # Document technique d'implementation - Architecture deepcode POC validee
 
+> Note historique : ce document decrit le POC Firebase d'origine. La production actuelle
+> utilise Supabase Auth, Cloudflare Pages et Workers/D1/R2 ; voir `docs/ARCHITECTURE.md`.
+
 Ce document decrit exactement l'architecture prouvee dans ce repo pour la re-implementer a l'identique.
 Tout vient du POC : landing, public, workers, docs, specs, firebase.json, .firebaserc, rules.
 

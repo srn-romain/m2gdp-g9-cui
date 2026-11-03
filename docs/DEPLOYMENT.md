@@ -1,104 +1,74 @@
-# DEPLOYMENT
+# DEPLOYMENT — Cloudflare
 
-Pré-requis : Node 22+, npm 10+, `firebase-tools` — utiliser `npx firebase-tools@latest`,
-la commande globale `firebase` est cassée sur ce poste — et Wrangler v4.
+Prerequis : Node 22+, npm 10+, Wrangler v4, un compte Cloudflare connecte via
+`wrangler login`.
 
 ## Environnements
 
-| Élément | Valeur |
+| Element | Valeur |
 |---|---|
-| Projet Firebase | `labonnetablee-cb767` (compte nhistoriques@gmail.com) |
-| App web Firebase | `1:493630874510:web:5bd8399c2adb40dcd27adf` |
-| Site hosting `app` | `labonnetablee` → https://labonnetablee.web.app |
-| Site hosting `landing` | `labonnetablee-landing` → https://labonnetablee-landing.web.app |
-| Compte Cloudflare | nhistoriques@gmail.com |
 | Worker | `labonnetablee-api` → https://labonnetablee-api.poc-m2gdp-g9-cui-api.workers.dev |
-| Base D1 | `labonnetablee-db` — `2db9f691-380d-4f38-ab36-5b73430fc42e` (WEUR) |
+| Base D1 | `labonnetablee-db` — `2db9f691-380d-4f38-ab36-5b73430fc42e` |
 | Bucket R2 | `labonnetablee-files` |
+| Pages app | projet `labonnetablee` → https://labonnetablee.pages.dev |
+| Pages landing | projet `labonnetablee-landing` → https://labonnetablee-landing.pages.dev |
 
 ## Configuration du front
 
-Trois fichiers, du plus partagé au plus local :
+Trois fichiers, du plus partage au plus local :
 
-| Fichier | Versionné | Rôle |
+| Fichier | Versionne | Role |
 |---|---|---|
-| `public/.env` | oui | Configuration web Firebase (clé publique) |
-| `public/.env.production` | oui | `VITE_API_URL` de l'API déployée, lue par `vite build` |
-| `public/.env.local` | non | Surcharges de développement uniquement |
+| `public/.env` | oui | Configuration Supabase (publishable, publique) |
+| `public/.env.production` | oui | URL de l'API deployee et bascule demo |
+| `public/.env.local` | non | Surcharges de developpement |
 
-La clé web Firebase n'est pas un secret : elle est restreinte par les domaines autorisés
-et par référent. La recherche d'adresse passe par l'API Adresse (Base Adresse Nationale),
-service public gratuit et sans clé : aucun secret à gérer.
+La cle publishable Supabase est publique par conception : la securite repose sur les
+Row Level Security policies. La cle `service_role`/`secret` ne doit jamais etre dans
+le front.
 
-### Mode démo
+## Deploiement
 
-Le site déployé tourne en **mode démo** (`VITE_DEMO_MODE=true` dans
-`public/.env.production`) : les données viennent de `public/src/lib/mock.ts` et la
-connexion ouvre une session fictive, sans Firebase ni API. C'est ce qui permet de relire
-les écrans sur un téléphone pendant la phase de design.
-
-Avant la mise en production réelle : passer `VITE_DEMO_MODE` à `false`, activer la
-connexion par lien magique dans la console Firebase, puis redéployer.
-
-## Déploiement
-
-1. **API** (Cloudflare)
+1. **Worker**
 
    ```sh
    cd workers
+   npx wrangler secret put SUPABASE_URL
    npx wrangler d1 migrations apply labonnetablee-db --remote
    npx wrangler deploy
    ```
 
-   Secrets optionnels : `npx wrangler secret put R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
-   `R2_SECRET_ACCESS_KEY` (envoi d'avatars).
-
-2. **Front** (Firebase Hosting)
+2. **App**
 
    ```sh
-   cd public && npm run build
-   npx firebase-tools@latest deploy --only hosting --project labonnetablee-cb767
+   cd public
+   npm run build
+   npx wrangler pages deploy dist --project-name labonnetablee
    ```
 
-   Toujours passer par `--only hosting` : `firebase.json` déclare aussi les règles
-   Firestore / RTDB / Storage, or ces services ne sont pas activés sur ce projet
-   (le métier vit dans D1, les avatars dans R2). Un `firebase deploy` sans filtre échoue.
+   Le build embarque les variables de `public/.env.production`. `public/static/_redirects`
+   fournit le fallback SPA (`/* /index.html 200`).
+   Source : https://developers.cloudflare.com/pages/configuration/redirects/
 
-3. **Console Firebase — manuel, une seule fois**
+3. **Landing**
 
-   - Authentication → Sign-in method → activer **E-mail/lien magique**.
-   - Authentication → Settings → Domaines autorisés : ajouter `labonnetablee.web.app`
-     (`localhost`, `labonnetablee-cb767.firebaseapp.com` et
-     `labonnetablee-cb767.web.app` sont présents d'origine), plus tout domaine
-     personnalisé ajouté ensuite.
+   ```sh
+   npx wrangler pages deploy landing --project-name labonnetablee-landing
+   ```
 
-   Sans cette activation, `POST /auth/magic-links` répond 202 mais aucun e-mail ne part.
-   Sans le domaine dans la liste, l'envoi échoue avec `auth/unauthorized-continue-uri`.
-
-   Note : `<projet>.web.app` et `<projet>.firebaseapp.com` sont générés par Firebase et
-   ne peuvent pas être supprimés. `labonnetablee-cb767.web.app` continue donc de servir
-   l'application ; l'URL de référence reste `labonnetablee.web.app`.
-
-## Vérifications
+## Verifications
 
 ```sh
 curl https://labonnetablee-api.poc-m2gdp-g9-cui-api.workers.dev/api/health
 curl -i https://labonnetablee-api.poc-m2gdp-g9-cui-api.workers.dev/api/v1/me   # 401 attendu
-curl -X POST -H 'Content-Type: application/json' -d '{"email":"a@b.fr"}' \
-  https://labonnetablee-api.poc-m2gdp-g9-cui-api.workers.dev/api/v1/auth/magic-links  # 202 attendu
 ```
 
-Puis le parcours complet : https://labonnetablee.web.app → « Créer un compte » →
-lien reçu par e-mail → accueil.
+Puis le parcours complet sur https://labonnetablee.pages.dev → creer un compte →
+lien magique Supabase → `/auth/finish` → profil.
 
 ## Rollback
 
-- Hosting : `firebase hosting:clone` (pas de rollback natif), ou redéployer un commit antérieur.
 - Worker : `npx wrangler rollback --version-id <id>`.
+- Pages : `npx wrangler pages deployment list --project-name <projet>`, puis redeployer
+  un artefact anterieur.
 - D1 : append-only, migration corrective.
-
-## CI
-
-`.github/workflows/ci.yml` vérifie aujourd'hui types, build et tests. Aucun déploiement
-automatique n'est branché : il faudrait ajouter `FIREBASE_TOKEN` et
-`CLOUDFLARE_API_TOKEN` dans les secrets du dépôt.

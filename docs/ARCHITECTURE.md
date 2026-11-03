@@ -1,16 +1,17 @@
 # ARCHITECTURE — La Bonne Tablee (prod)
 
-Socle prouve : POC deepcode (Firebase + Workers Hono + D1 + R2, hosting multisite).
-Detail : `specs/IMPLEMENTATION-ARCHITECTURE.md` (partie A = POC a reproduire, partie B = prod).
+La production a remplace Firebase par Supabase Auth et Cloudflare Pages.
+Le POC historique reste documente dans `specs/IMPLEMENTATION-ARCHITECTURE.md`.
 
 Schema :
 
-- `landing/` : vitrine statique -> Hosting cible `landing`.
-- `public/` : app Vue 3 + shadcn-vue PWA (racine Vite, publicDir `static`, build `public/dist`) -> cible `app`.
+- `landing/` : vitrine statique -> Cloudflare Pages projet `labonnetablee-landing`.
+- `public/` : app Vue 3 + shadcn-vue PWA (racine Vite, publicDir `static`, build `public/dist`).
+  Le fichier `public/static/_redirects` assure le fallback SPA.
 - `workers/` : API Hono, base unique `/api/v1`, D1 (metier) + R2 (avatars).
-- Auth : lien magique Firebase sous le capot. `POST /auth/magic-links` -> 202 toujours ;
-  `POST /auth/sessions` -> 201 `{accessToken, tokenType: Bearer, expiresIn: 3600}`.
-  Bearer 1h verifie par le Worker (jose + JWKS). Pas d'Admin SDK dans les Workers.
+- Auth : lien magique Supabase. Le Worker verifie le jeton via `jose` + JWKS
+  (`<SUPABASE_URL>/auth/v1/.well-known/jwks.json`). `POST /auth/magic-links` et
+  `POST /auth/sessions` restent disponibles pour le parcours de test et les tests e2e.
 - Donnees : D1 prod (`workers/migrations/0001_prod_init.sql`), conventions UML
   (UUID v4 serveur, Instant ISO8601 UTC, enums UPPER_SNAKE, Decimal jamais float,
   champs calcules jamais stockes). Titre `{dishName} chez {host.firstName}` derive.

@@ -1,5 +1,9 @@
 # La Bonne Tablée — spécifications du scénario minimal
 
+> Note : ce dossier decrit le scenario metier, independant de l'hebergeur. L'implementation
+> de production a migre de Firebase vers Supabase Auth et Cloudflare Pages ; voir
+> `docs/ARCHITECTURE.md` et `docs/SUPABASE-DEPLOYMENT.md`.
+
 Deux livrables, dérivés du parcours client de la maquette :
 
 | Livrable | Fichier |

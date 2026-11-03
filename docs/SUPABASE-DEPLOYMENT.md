@@ -13,10 +13,7 @@ Firebase → Supabase portée par la branche `feature/supabase-migration`.
 - L'API Hono, D1 et R2 restent inchangés : ils continuent de tourner sur Cloudflare Workers.
 
 Supabase ne fournit pas d'hébergement de site statique générique. Le front Vue
-est un build statique (`public/dist`) à servir sur un CDN ou un hébergeur statique
-(l'hébergement Firebase actuel peut être conservé provisoirement, mais l'objectif
-de sortie complète de Firebase est de le remplacer, par exemple par Cloudflare Pages
-ou Netlify).
+est un build statique (`public/dist`) servi par Cloudflare Pages.
 
 ## 1. Créer le projet Supabase
 
@@ -47,11 +44,11 @@ ne doit jamais être exposée au front.
 2. Vérifier que le provider Email est activé (il l'est par défaut).
 3. Aller dans Authentication → URL Configuration.
 4. Définir Site URL sur l'URL publique du front, par exemple
-   `https://labonnetablee.web.app`.
+   `https://labonnetablee.pages.dev`.
 5. Ajouter les Redirect URLs autorisées :
 
    ```
-   https://labonnetablee.web.app/auth/finish
+   https://labonnetablee.pages.dev/auth/finish
    http://localhost:5173/auth/finish
    http://127.0.0.1:5173/auth/finish
    ```
@@ -95,7 +92,7 @@ Source : https://supabase.com/docs/guides/auth/jwts?queryGroups=language&languag
 
 ## 6. Vérifier en local
 
-Dans trois terminaux :
+Dans deux terminaux :
 
 ```sh
 # 1. Worker
@@ -140,15 +137,13 @@ VITE_DEMO_MODE=false \
 npm run build
 ```
 
-Publier `public/dist` sur l'hébergeur statique choisi. Si l'on conserve
-provisoirement Firebase Hosting :
+Publier `public/dist` sur Cloudflare Pages :
 
 ```sh
-npx firebase-tools@latest deploy --only hosting:app
+npx wrangler pages deploy dist --project-name labonnetablee
 ```
 
-Pour sortir complètement de Firebase, déployer `public/dist` sur Cloudflare Pages,
-Netlify ou tout autre CDN, avec un rewrite SPA de `**` vers `/index.html`.
+Le fallback SPA est déjà fourni par `public/static/_redirects`.
 
 ## 9. Comptes existants
 
@@ -157,7 +152,7 @@ sont reliés à l'identité par l'e-mail. Un utilisateur existant se reconnecte 
 le même e-mail ; Supabase crée alors son identité et le Worker relie cet e-mail au
 compte D1 existant.
 
-Les liens magiques Firebase déjà envoyés ne sont plus valables : demander un
+Les liens magiques Supabase envoyés avant le déploiement ne sont plus valables : demander un
 nouveau lien après le déploiement.
 
 ## 10. Checklist de mise en service
@@ -177,8 +172,8 @@ nouveau lien après le déploiement.
 
 - Front : redéployer le build de la branche `main`.
 - Worker : `npx wrangler rollback --version-id <id>`.
-- Auth : le code de `main` utilisait encore Firebase ; revenir à `main` rétablit
-  l'ancien parcours tant que la configuration Firebase est encore en place.
+- Auth : revenir à un commit antérieur si la configuration Supabase doit être
+  annulée ; les profils restent dans D1.
 
 ## Prochaine étape possible
 
