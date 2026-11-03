@@ -92,7 +92,7 @@ Source : https://supabase.com/docs/guides/auth/jwts?queryGroups=language&languag
 
 ## 6. Vérifier en local
 
-Dans trois terminaux :
+Dans deux terminaux :
 
 ```sh
 # 1. Worker

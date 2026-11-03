@@ -65,12 +65,15 @@ cd workers && npx wrangler d1 migrations apply labonnetablee-db --local
 ## Deployer
 
 ```sh
-cd workers && npx wrangler d1 migrations apply labonnetablee-db --remote
-cd workers && npx wrangler deploy
+cd workers
+npx wrangler d1 migrations apply labonnetablee-db --remote
+npx wrangler deploy
 
-cd public && npm run build
-npx wrangler pages deploy public/dist --project-name labonnetablee
+cd ../public
+npm run build
+npx wrangler pages deploy dist --project-name labonnetablee
 
+cd ..
 npx wrangler pages deploy landing --project-name labonnetablee-landing
 ```
 

@@ -13,8 +13,8 @@ cd public && npm install && npm run dev
 ```
 
 L'authentification utilise directement le projet Supabase heberge : aucune emulation
-locale n'est necessaire. En mode local, `VITE_API_URL` vide fait tomber le client sur
-`http://localhost:8787`.
+locale n'est necessaire. Le modele definit `VITE_API_URL=http://localhost:8787` ; si la
+variable est vide, le client retombe aussi sur cette valeur par defaut.
 
 ## Configuration
 
