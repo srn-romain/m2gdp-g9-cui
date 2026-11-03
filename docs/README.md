@@ -11,4 +11,5 @@ Ecart documente (POC vs scenNominal) : la reference metier vit en `specs/`, pas 
 - `docs/ARCHITECTURE.md` : resume d'implementation (socle POC + adaptations prod).
 - `docs/API.md` : conventions d'API /api/v1.
 - `docs/DEPLOYMENT.md` : deploiement hosting + worker.
+- `docs/SUPABASE-DEPLOYMENT.md` : deploiement de la migration Firebase → Supabase.
 - `docs/GUIDE-LOCAL.md` : demarrage local.

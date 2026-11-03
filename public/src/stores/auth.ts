@@ -1,110 +1,107 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import {
-  isSignInWithEmailLink, sendSignInLinkToEmail, signInWithEmailLink, type User as FirebaseUser,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { createSession, requestMagicLink, setAccessTokenProvider } from '@/lib/api';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { setAccessTokenProvider } from '@/lib/api';
 import { DEMO_MODE, DEMO_USER } from '@/lib/mock';
 
 export const useAuthStore = defineStore('auth', () => {
   // En mode démo, la session est fictive : on la garde en localStorage pour qu'un
-  // rafraîchissement de page ne déconnecte pas (comportement réel de Firebase en prod).
+  // rafraîchissement de page ne déconnecte pas (comportement réel de Supabase en prod).
   const CLE_SESSION_DEMO = 'lbt.demoSession';
 
-  const user = ref<FirebaseUser | null>(null);
+  const user = ref<SupabaseUser | null>(null);
   const isNewUser = ref(false);
   const loading = ref(true);
   const ready = ref(false);
-  const accessToken = ref<string | null>(null);
 
   function actionUrl(): string {
     // Le lien magique doit revenir sur le domaine réellement utilisé (dev, preview ou prod).
     return `${window.location.origin}/auth/finish`;
   }
 
-  /** Écran « Bon retour ! » : lien Firebase sous le capot, déclaration serveur tolérante. */
+  /** Écran « Bon retour ! » : envoie un lien magique via Supabase Auth. */
   async function sendMagicLink(email: string) {
     // Mode démo : la session s'ouvre immédiatement, sans lien par e-mail.
     if (DEMO_MODE) {
       await new Promise((resolve) => setTimeout(resolve, 400));
-      user.value = { uid: DEMO_USER.id, email } as FirebaseUser;
+      user.value = { id: DEMO_USER.id, email } as SupabaseUser;
       window.localStorage.setItem(CLE_SESSION_DEMO, email);
       return;
     }
-    // 202 systématique côté serveur : la réponse ne dit jamais si l'adresse est connue,
-    // sinon l'endpoint permettrait d'énumérer les comptes.
-    await requestMagicLink(email).catch(() => {
-      /* une erreur réseau ne doit pas bloquer le parcours */
+    // « sign in with OTP » envoie un Magic Link par défaut. La réponse ne révèle pas
+    // si l'adresse est connue, ce qui évite d'énumérer les comptes.
+    // Source : https://supabase.com/docs/guides/auth/auth-email-passwordless#signing-in-with-magic-link
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: actionUrl(), shouldCreateUser: true },
     });
-    await sendSignInLinkToEmail(auth, email, { url: actionUrl(), handleCodeInApp: true });
-    window.localStorage.setItem('emailForSignIn', email);
+    if (error) throw error;
   }
 
-  async function finishMagicLink(href = window.location.href) {
+  async function finishMagicLink() {
     if (DEMO_MODE) return;
-    let email = window.localStorage.getItem('emailForSignIn') ?? '';
-    if (!email) email = window.prompt('Confirmez votre e-mail :') ?? '';
-    if (!isSignInWithEmailLink(auth, href)) throw new Error('Lien invalide.');
-    const cred = await signInWithEmailLink(auth, email, href);
-    window.localStorage.removeItem('emailForSignIn');
-    const meta: unknown = cred.user.metadata;
+    // Le lien magique ramène avec la session dans l'URL ; detectSessionInUrl la
+    // consomme automatiquement. getSession() confirme l'état courant sans redéclencher
+    // de navigation.
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) throw new Error('Lien invalide.');
+    user.value = data.session.user;
     isNewUser.value =
-      (cred as unknown as { _tokenResponse?: { isNewUser?: boolean } })._tokenResponse?.isNewUser ??
-      (meta as { creationTime?: string; lastSignInTime?: string }).creationTime ===
-        (meta as { lastSignInTime?: string }).lastSignInTime;
-    const idToken = await cred.user.getIdToken();
-    const session = await createSession(idToken);
-    accessToken.value = session.accessToken;
-    user.value = cred.user;
+      data.session.user.created_at === data.session.user.last_sign_in_at;
   }
 
   async function logout() {
     if (DEMO_MODE) {
       window.localStorage.removeItem(CLE_SESSION_DEMO);
       user.value = null;
-      accessToken.value = null;
       return;
     }
-    accessToken.value = null;
-    await auth.signOut();
+    await supabase.auth.signOut();
     user.value = null;
   }
 
   function initAuthListener() {
     setAccessTokenProvider(getToken);
-    // Mode démo : aucune connexion Firebase. La session fictive est restaurée si elle
+    // Mode démo : aucune connexion Supabase. La session fictive est restaurée si elle
     // existe déjà, sinon on démarre déconnecté pour pouvoir relire les écrans d'accès.
     if (DEMO_MODE) {
       const email = window.localStorage.getItem(CLE_SESSION_DEMO);
-      user.value = email ? ({ uid: DEMO_USER.id, email } as FirebaseUser) : null;
+      user.value = email ? ({ id: DEMO_USER.id, email } as SupabaseUser) : null;
       loading.value = false;
       ready.value = true;
       return;
     }
-    auth.onAuthStateChanged((u) => {
-      user.value = u;
+    // Source : https://supabase.com/docs/reference/javascript/auth-onauthstatechange
+    supabase.auth.onAuthStateChange((_event, session) => {
+      user.value = session?.user ?? null;
       loading.value = false;
       ready.value = true;
     });
   }
 
   async function getToken(): Promise<string | null> {
-    if (accessToken.value) return accessToken.value;
-    return auth.currentUser?.getIdToken() ?? null;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
   }
 
   /** Attend le premier état d'authentification, sans bloquer indéfiniment. */
   function waitForAuth(timeoutMs = 4000): Promise<void> {
     if (ready.value) return Promise.resolve();
     return new Promise((resolve) => {
-      const stop = auth.onAuthStateChanged(() => { stop(); resolve(); });
-      setTimeout(() => { stop(); resolve(); }, timeoutMs);
+      const { data } = supabase.auth.onAuthStateChange(() => {
+        data.subscription.unsubscribe();
+        resolve();
+      });
+      setTimeout(() => {
+        data.subscription.unsubscribe();
+        resolve();
+      }, timeoutMs);
     });
   }
 
   return {
-    user, isNewUser, loading, ready, accessToken,
+    user, isNewUser, loading, ready,
     sendMagicLink, finishMagicLink, logout, initAuthListener, getToken, waitForAuth,
   };
 });

@@ -1,5 +1,5 @@
 /**
- * Écran de démarrage affiché quand la configuration Firebase est incomplète.
+ * Écran de démarrage affiché quand la configuration Supabase est incomplète.
  * Volontairement en DOM brut : l'application Vue ne peut pas démarrer sans clés.
  */
 export function renderConfigHelp(container: HTMLElement, missing: string[]): void {
@@ -37,7 +37,7 @@ export function renderConfigHelp(container: HTMLElement, missing: string[]): voi
     margin: '0 0 20px',
   });
   intro.textContent =
-    "L'application a besoin de ses clés Firebase pour démarrer. Renseigne le fichier " +
+    "L'application a besoin de ses clés Supabase pour démarrer. Renseigne le fichier " +
     'public/.env.local, puis relance npm run dev.';
 
   const subtitle = style(document.createElement('h2'), {
@@ -75,8 +75,8 @@ export function renderConfigHelp(container: HTMLElement, missing: string[]): voi
   });
   for (const step of [
     'cp public/.env.example public/.env.local',
-    'Console Firebase → Paramètres du projet → Vos applications → Web',
-    'Recopier apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId',
+    'Tableau de bord Supabase → Project Settings → API',
+    'Recopier Project URL (VITE_SUPABASE_URL) et publishable key (VITE_SUPABASE_PUBLISHABLE_KEY)',
     'Relancer npm run dev',
   ]) {
     const item = document.createElement('li');
@@ -88,7 +88,7 @@ export function renderConfigHelp(container: HTMLElement, missing: string[]): voi
   container.append(page);
 
   console.info(
-    `[La Bonne Tablée] Configuration Firebase incomplète : ${missing.join(', ')}. ` +
+    `[La Bonne Tablée] Configuration Supabase incomplète : ${missing.join(', ')}. ` +
       'Renseigne public/.env.local (modèle dans public/.env.example) puis relance npm run dev.',
   );
 }

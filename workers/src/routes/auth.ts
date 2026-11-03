@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { apiError } from '../errors';
 import { newId, nowIso } from '../models';
-import { readFirebaseIdToken } from '../auth';
+import { verifySupabaseIdToken } from '../auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const hits = new Map<string, number[]>();
@@ -39,21 +39,18 @@ authRoutes.post('/sessions', async (c) => {
     'SELECT token, email, expiresAt, usedAt FROM magic_links WHERE token = ?',
   ).bind(body.token).first<{ token: string; email: string; expiresAt: string; usedAt: string | null }>();
   let email: string | undefined;
-  let passthroughFirebase = false;
+  let passthroughSupabase = false;
   if (magic) {
     if (magic.usedAt || magic.expiresAt <= now) return apiError('UNAUTHENTICATED', 'Jeton expire ou deja utilise.');
     await c.env.DB.prepare('UPDATE magic_links SET usedAt = ? WHERE token = ?').bind(now, magic.token).run();
     email = magic.email;
   } else {
     try {
-      const p = await readFirebaseIdToken(
-        body.token,
-        c.env.FIREBASE_PROJECT_ID,
-        c.env.FIREBASE_AUTH_EMULATOR === 'true',
-      );
+      if (!c.env.SUPABASE_URL) throw new Error('SUPABASE_URL absent.');
+      const p = await verifySupabaseIdToken(body.token, c.env.SUPABASE_URL);
       email = (p.email ?? '').toLowerCase();
       if (!email) return apiError('UNAUTHENTICATED', 'Jeton invalide.');
-      passthroughFirebase = true;
+      passthroughSupabase = true;
     } catch {
       return apiError('UNAUTHENTICATED', 'Jeton invalide.');
     }
@@ -66,7 +63,7 @@ authRoutes.post('/sessions', async (c) => {
       "INSERT INTO users (id, email, firstName, lastName, neighborhood, city, dietaryPreferences, status, createdAt, updatedAt) VALUES (?, ?, '', '', '', '', '[]', 'ACTIVE', ?, ?)",
     ).bind(userId, email, now, now).run();
   }
-  if (passthroughFirebase) {
+  if (passthroughSupabase) {
     return c.json({ accessToken: body.token, tokenType: 'Bearer', expiresIn: 3600 }, 201);
   }
   const sessionId = crypto.randomUUID();

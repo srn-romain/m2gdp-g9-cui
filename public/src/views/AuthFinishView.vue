@@ -6,7 +6,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { clearSignupDraft, guessNeighborhoodCity, readSignupDraft } from '@/lib/signupDraft';
-import { syncProfileToFirestore } from '@/lib/firestoreProfile';
 import type { UserUpdate } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth';
 import { useMeStore } from '@/stores/me';
@@ -18,7 +17,7 @@ const error = ref<string | null>(null);
 
 /**
  * Applique le profil saisi avant la connexion : l'adresse porte déjà les coordonnées.
- * On ne se fie pas à `isNewUser` de Firebase (peu fiable selon les environnements) mais
+ * On ne se fie pas à `isNewUser` de Supabase (peu fiable selon les environnements) mais
  * au profil réellement stocké dans D1 : s'il porte déjà un prénom, le compte existait.
  */
 async function applySignupDraft() {
@@ -56,14 +55,6 @@ onMounted(async () => {
   try {
     await authStore.finishMagicLink();
     await applySignupDraft();
-    // Miroir Firestore à chaque connexion, même sans profil à compléter.
-    const profil = await meStore.load(true);
-    const uid = authStore.user?.uid;
-    if (uid && profil) {
-      await syncProfileToFirestore(uid, profil).catch((e) => {
-        console.warn('[profil] miroir Firestore non écrit :', e);
-      });
-    }
     await router.replace('/');
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Connexion impossible.';
