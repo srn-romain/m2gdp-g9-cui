@@ -81,8 +81,19 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function getToken(): Promise<string | null> {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) return null;
+    const maintenant = Math.floor(Date.now() / 1000);
+    const expire = data.session.expires_at ?? 0;
+    // Rafraîchit avant l'expiration : l'utilisateur reste connecté tant que
+    // Supabase accepte le refresh token, sans passage par un nouvel e-mail.
+    if (expire - maintenant < 60) {
+      const { data: refreshed } = await supabase.auth.refreshSession({
+        refresh_token: data.session.refresh_token,
+      });
+      if (refreshed.session) return refreshed.session.access_token;
+    }
+    return data.session.access_token;
   }
 
   /** Attend le premier état d'authentification, sans bloquer indéfiniment. */
