@@ -164,9 +164,35 @@ export const DEMO_TABLE_SOUPE: Table = {
   createdAt: '2026-09-20T10:00:00Z',
 };
 
-export const DEMO_UPCOMING = [DEMO_TABLE_GRATIN, DEMO_TABLE_RISOTTO];
+/** Table libre de participation : sert de fixture e2e pour le parcours « rejoindre ». */
+export const DEMO_TABLE_LIBRE: Table = {
+  id: 'demo-libre',
+  title: 'Quiche chez Pierre',
+  dishName: 'Quiche lorraine',
+  description: 'Une quiche à partager entre voisins.',
+  startsAt: at(1, 19, 0),
+  durationMinutes: 120,
+  seatsTotal: 4,
+  seatsAvailable: 3,
+  visibility: 'PUBLIC',
+  status: 'OPEN',
+  isVegetarian: false,
+  hasAllergenNotice: false,
+  host: personne('demo-pierre', 'Pierre'),
+  location: {
+    neighborhood: 'Lyon 7e',
+    city: 'Lyon',
+    coordinates: { latitude: 45.751, longitude: 4.848 },
+  },
+  contributions: [],
+  wantedContributions: [{ label: 'Salade verte', quantity: 1, unit: 'UNIT' }],
+  distanceMeters: 800,
+  createdAt: '2026-10-03T10:00:00Z',
+};
+
+export const DEMO_UPCOMING = [DEMO_TABLE_GRATIN, DEMO_TABLE_RISOTTO, DEMO_TABLE_LIBRE];
 export const DEMO_PAST = [DEMO_TABLE_SOUPE];
-export const DEMO_ALL = [DEMO_TABLE_GRATIN, DEMO_TABLE_RISOTTO, DEMO_TABLE_SOUPE];
+export const DEMO_ALL = [DEMO_TABLE_GRATIN, DEMO_TABLE_RISOTTO, DEMO_TABLE_LIBRE, DEMO_TABLE_SOUPE];
 
 /**
  * Applique les filtres de l'explorateur à la démo (régime, rayon, créneau,

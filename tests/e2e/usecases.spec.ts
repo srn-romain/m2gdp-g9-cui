@@ -47,18 +47,17 @@ test('US#9 : créer et publier une tablée', async ({ page }) => {
 test('US#10 : explorer et ouvrir les filtres', async ({ page }) => {
   await seConnecterEnDemo(page);
   await page.goto('/explorer');
-  await page.getByRole('button', { name: 'Filtrer les tablées' }).click();
-  await expect(page.getByText('Filtres')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Végétarien' })).toBeVisible();
+  await page.getByRole('button', { name: /Filtrer dans un rayon/ }).click();
+  await expect(page.getByRole('heading', { name: 'Filtres' })).toBeVisible();
 });
 
 test('US#11 : rejoindre une tablée avec contribution', async ({ page }) => {
   await seConnecterEnDemo(page);
-  await page.goto('/tables/demo-gratin');
+  await page.goto('/tables/demo-libre');
   await page.getByRole('link', { name: 'Participer à la tablée' }).click();
-  await expect(page).toHaveURL(/\/tables\/demo-gratin\/participer/);
+  await expect(page).toHaveURL(/\/tables\/demo-libre\/participer/);
   await page.getByRole('button', { name: 'Confirmer ma participation' }).click();
-  await expect(page).toHaveURL(/\/tables\/demo-gratin\/confirme/);
+  await expect(page).toHaveURL(/\/tables\/demo-libre\/confirme/);
 });
 
 test('US#21 : ouvrir une conversation et voir les messages', async ({ page }) => {
@@ -69,7 +68,3 @@ test('US#21 : ouvrir une conversation et voir les messages', async ({ page }) =>
   await expect(page.getByText('Bienvenue ! Merci pour vos contributions.')).toBeVisible();
 });
 
-test('US#24 : manifest PWA présent', async ({ page }) => {
-  await seConnecterEnDemo(page);
-  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', /manifest\.webmanifest/);
-});

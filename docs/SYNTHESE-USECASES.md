@@ -36,9 +36,9 @@
 | 19 | Météo locale | OPEN | ✅ Done | ➖ Hors e2e (réseau) |
 | 20 | Messagerie & Échanges | OPEN | ✅ Done | 🧪 Testée (via #21) |
 | 21 | Messages et photos | OPEN | ✅ Done (texte, photo, audio) | 🧪 Testée |
-| 22 | Architecture & Socle PWA | OPEN | ✅ Done | 🧪 Testée (manifest + CI) |
+| 22 | Architecture & Socle PWA | OPEN | ✅ Done | ➖ Hors e2e (validé par CI/build) |
 | 23 | API REST et infra Cloud | OPEN | ✅ Done (Workers, D1, R2) | 🧪 Testée (smoke API) |
-| 24 | PWA installable et CI/CD | OPEN | ⚠️ Partiel (PWA OK, e2e désormais branché en CI) | 🧪 Testée |
+| 24 | PWA installable et CI/CD | OPEN | ⚠️ Partiel (PWA OK, e2e désormais branché en CI) | ➖ Hors e2e (validé par CI/build) |
 
 ## Décisions à trancher
 
@@ -51,6 +51,6 @@
 ## Couverture e2e ajoutée
 
 - `tests/playwright.config.ts` : serveur Vite en mode démo.
-- `tests/e2e/usecases.spec.ts` : parcours UI des use cases 1, 2, 4, 9, 10, 11, 21 et 24.
+- `tests/e2e/usecases.spec.ts` : parcours UI des use cases 1, 2, 4, 9, 10, 11 et 21.
 - `.github/workflows/ci.yml` : job `e2e` qui installe Chromium et lance les tests UI.
 - `tests/package.json` : scripts `e2e:ui` et `e2e:smoke`.
