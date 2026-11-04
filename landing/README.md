@@ -3,8 +3,8 @@
 Site statique du **dossier de rendu** (M2CIM 2026) : cadrage, recherche utilisateur,
 conception, prototype et pilotage produit.
 
-Publié par Cloudflare Pages via le projet `labonnetablee-landing` :
-<https://labonnetablee-landing.pages.dev>
+Publié par Cloudflare Pages via le projet `labonnetablee-depot` :
+<https://labonnetablee-depot.pages.dev>
 
 ## Pages
 
@@ -44,7 +44,7 @@ npx wrangler pages dev landing --port 8788   # http://localhost:8788
 ## Déploiement
 
 ```sh
-npx wrangler pages deploy landing --project-name labonnetablee-landing
+npx wrangler pages deploy landing --project-name labonnetablee-depot
 ```
 
 Rappel des prérequis : `wrangler login` et un compte Cloudflare.
@@ -52,13 +52,12 @@ Rappel des prérequis : `wrangler login` et un compte Cloudflare.
 ## Liens publiés
 
 - Application (bouton « Voir la démo ») : <https://labonnetablee.pages.dev>
+- Site vitrine : <https://labonnetablee-landing.pages.dev>
 - Roadmap GitHub : <https://github.com/users/srn-romain/projects/2/views/1>
 - Dépôt : <https://github.com/srn-romain/m2gdp-g9-cui>
 
 ## Reste à faire
 
-- La carte « Site vitrine » de `produit.html` pointe encore vers cette même URL, devenue le
-  dossier lui-même — à supprimer ou repointer.
 - 7 images ne sont plus référencées par aucune page (~6 Mo) : `assets/charte.png`,
   `mascotte.png`, `mijote-icon.png`, `persona-bernard.png`, `persona-camille.png`,
   `persona-yanis.png`, `storyboard.png`.

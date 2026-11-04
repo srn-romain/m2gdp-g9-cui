@@ -11,7 +11,8 @@ Prerequis : Node 22+, npm 10+, Wrangler v4, un compte Cloudflare connecte via
 | Base D1 | `labonnetablee-db` — `2db9f691-380d-4f38-ab36-5b73430fc42e` |
 | Bucket R2 | `labonnetablee-files` |
 | Pages app | projet `labonnetablee` → https://labonnetablee.pages.dev |
-| Pages landing | projet `labonnetablee-landing` → https://labonnetablee-landing.pages.dev |
+| Pages vitrine | projet `labonnetablee-landing` → https://labonnetablee-landing.pages.dev |
+| Pages depot | projet `labonnetablee-depot` → https://labonnetablee-depot.pages.dev |
 
 ## Configuration du front
 
@@ -50,10 +51,16 @@ le front.
    fournit le fallback SPA (`/* /index.html 200`).
    Source : https://developers.cloudflare.com/pages/configuration/redirects/
 
-3. **Landing**
+3. **Site vitrine**
 
    ```sh
-   npx wrangler pages deploy landing --project-name labonnetablee-landing
+   npx wrangler pages deploy landing-vitrine --project-name labonnetablee-landing --branch feature/remove-firebase
+   ```
+
+4. **Dossier de projet**
+
+   ```sh
+   npx wrangler pages deploy landing --project-name labonnetablee-depot
    ```
 
 ## Verifications

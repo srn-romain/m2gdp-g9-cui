@@ -74,7 +74,8 @@ npm run build
 npx wrangler pages deploy dist --project-name labonnetablee
 
 cd ..
-npx wrangler pages deploy landing --project-name labonnetablee-landing
+npx wrangler pages deploy landing --project-name labonnetablee-depot
+npx wrangler pages deploy landing-vitrine --project-name labonnetablee-landing --branch feature/remove-firebase
 ```
 
 Detail : `docs/GUIDE-LOCAL.md` (local), `docs/SUPABASE-DEPLOYMENT.md` (Supabase),

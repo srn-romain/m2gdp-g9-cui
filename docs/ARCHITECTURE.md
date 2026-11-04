@@ -5,7 +5,8 @@ Le POC historique reste documente dans `specs/IMPLEMENTATION-ARCHITECTURE.md`.
 
 Schema :
 
-- `landing/` : vitrine statique -> Cloudflare Pages projet `labonnetablee-landing`.
+- `landing/` : dossier de projet statique -> Cloudflare Pages projet `labonnetablee-depot`.
+- `landing-vitrine/` : site vitrine statique -> Cloudflare Pages projet `labonnetablee-landing`.
 - `public/` : app Vue 3 + shadcn-vue PWA (racine Vite, publicDir `static`, build `public/dist`).
   Le fichier `public/static/_redirects` assure le fallback SPA.
 - `workers/` : API Hono, base unique `/api/v1`, D1 (metier) + R2 (avatars).

@@ -7,3 +7,6 @@ workers/.wrangler/
 *.log
 .DS_Store
 dist/
+/graphify-out
+.wrangler/
+docs/.env

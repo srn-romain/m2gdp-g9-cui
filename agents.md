@@ -12,7 +12,8 @@ specs/IMPLEMENTATION-ARCHITECTURE.md (POC historique).
 
 ## 2. Squelette de repo OBLIGATOIRE
 
-- /landing : site vitrine statique -> Cloudflare Pages projet `labonnetablee-landing`.
+- /landing : dossier de projet statique -> Cloudflare Pages projet `labonnetablee-depot`.
+- /landing-vitrine : site vitrine statique -> Cloudflare Pages projet `labonnetablee-landing`.
 - /public : app Vue 3 + shadcn-vue PWA, racine Vite, publicDir=static, build -> public/dist.
 - /workers : API Cloudflare Workers Hono, base /api/v1, D1 + R2.
 - /docs : dont docs/agents.md (ce fichier), docs/scenNominal ne se modifie pas sans PO.

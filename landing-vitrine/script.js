@@ -1,0 +1,5 @@
+const menuButton=document.querySelector('.menu');
+const nav=document.querySelector('.nav');
+if(menuButton&&nav){menuButton.addEventListener('click',()=>{const open=nav.classList.toggle('open');menuButton.setAttribute('aria-expanded',open);menuButton.textContent=open?'×':'☰';});}
+document.querySelectorAll('.nav a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{nav?.classList.remove('open');menuButton?.setAttribute('aria-expanded','false');if(menuButton)menuButton.textContent='☰';}));
+document.querySelectorAll('[data-contact-form]').forEach(form=>form.addEventListener('submit',event=>{event.preventDefault();const prenom=form.elements.prenom.value.trim();const email=form.elements.email.value.trim();const message=form.elements.message.value.trim();const subject=encodeURIComponent(`Message de ${prenom} depuis La Bonne Tablée`);const body=encodeURIComponent(`Prénom : ${prenom}\nE-mail : ${email}\n\nMessage :\n${message}`);form.querySelector('.form-status').textContent='Votre logiciel de messagerie va s’ouvrir.';window.location.href=`mailto:clairnoun@gmail.com?subject=${subject}&body=${body}`;}));
