@@ -77,3 +77,30 @@ aiRoutes.post('/table-draft', async (c) => {
     },
   });
 });
+
+aiRoutes.post('/table-suggestions', async (c) => {
+  const auth = await requireAuth(c);
+  if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
+  const b = (await c.req.json().catch(() => null)) as { query?: string } | null;
+  const query = (b?.query ?? '').trim();
+  if (query.length < 2 || query.length > 200) {
+    return apiError('VALIDATION_ERROR', 'query invalide.', { field: 'query' });
+  }
+  const reponse = await generer(c, [
+    {
+      role: 'system',
+      content:
+        'Tu es un assistant qui aide à trouver des repas partagés. À partir de la demande (envie, humeur, saison), propose 4 plats réalistes pour une tablée de quartier. Réponds UNIQUEMENT en JSON : {"dishes": ["plat 1", "plat 2", "plat 3", "plat 4"]}.',
+    },
+    { role: 'user', content: query },
+  ]);
+
+  const repli = ['Ratatouille', 'Tajine de légumes', 'Soupe de potiron', 'Tartiflette'];
+  if (!reponse) return c.json({ data: { dishes: repli } });
+
+  const parsed = extraireJson(reponse) as { dishes?: unknown } | null;
+  const dishes = Array.isArray(parsed?.dishes)
+    ? parsed.dishes.filter((d): d is string => typeof d === 'string').slice(0, 6)
+    : repli;
+  return c.json({ data: { dishes: dishes.length ? dishes : repli } });
+});

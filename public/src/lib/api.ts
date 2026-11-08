@@ -178,6 +178,10 @@ export function draftTableWithAi(description: string): Promise<TableDraft> {
   return apiPost<{ data: TableDraft }>(`${BASE}/ai/table-draft`, { description }).then((r) => r.data);
 }
 
+export function suggestTablesWithAi(query: string): Promise<{ dishes: string[] }> {
+  return apiPost<{ data: { dishes: string[] } }>(`${BASE}/ai/table-suggestions`, { query }).then((r) => r.data);
+}
+
 export const listMyTables = (scope: TableScope = 'upcoming', page = 1, pageSize = 20) =>
   DEMO_MODE
     ? Promise.resolve(demoPage(scope === 'past' ? DEMO_PAST : scope === 'upcoming' ? DEMO_UPCOMING : DEMO_ALL))
