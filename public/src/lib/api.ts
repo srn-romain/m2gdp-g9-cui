@@ -166,6 +166,18 @@ export function suggestTables(query: string): Promise<TableSuggestions> {
   return apiGet<{ data: TableSuggestions }>(`${BASE}/tables/suggestions?q=${encodeURIComponent(query.trim())}`).then((r) => r.data);
 }
 
+export interface TableDraft {
+  dishName: string;
+  description: string;
+  wantedContributions: Array<{ label: string; quantity?: number | null; unit?: string | null }>;
+  seatsTotal: number;
+  durationMinutes: number;
+}
+
+export function draftTableWithAi(description: string): Promise<TableDraft> {
+  return apiPost<{ data: TableDraft }>(`${BASE}/ai/table-draft`, { description }).then((r) => r.data);
+}
+
 export const listMyTables = (scope: TableScope = 'upcoming', page = 1, pageSize = 20) =>
   DEMO_MODE
     ? Promise.resolve(demoPage(scope === 'past' ? DEMO_PAST : scope === 'upcoming' ? DEMO_UPCOMING : DEMO_ALL))
