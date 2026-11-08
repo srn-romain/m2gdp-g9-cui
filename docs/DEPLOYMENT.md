@@ -39,6 +39,10 @@ le front.
    npx wrangler deploy
    ```
 
+   Le binding Workers AI (`[ai] binding = "AI"` dans `wrangler.toml`) est deploye
+   automatiquement avec le Worker. Workers AI est actif par defaut ; verifier avec
+   `npx wrangler ai models`. Aucune cle externe n'est necessaire.
+
 2. **App**
 
    ```sh

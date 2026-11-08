@@ -297,3 +297,12 @@ Chacune s'ajoute sans modifier les entités existantes.
 | `Favorite` | `User` et `Table` | `1 User 0..* Favorite`, `1 Table 0..* Favorite` | Aucun. Nouvelle ressource `/me/favorites` |
 | `Notification` | `User` | `1 User 0..* Notification` | Aucun. Nouveau canal, hors API REST si le push suffit |
 | `Media` | `User` | `1 User 0..* Media` | Aucun. `Message.audioUrl` pointera vers `Media.url` au lieu d'une URL externe |
+
+## Workers AI (hors modèle persistant)
+
+L'assistant IA (binding `AI`, modèle `@cf/meta/llama-3.2-3b-instruct`) n'ajoute
+aucune entité ni aucune table : il est **sans état**. Les endpoints
+`POST /ai/table-draft` et `POST /ai/table-suggestions` génèrent des données
+éphémères (brouillon, suggestions) qui ne sont persistées qu'après validation
+explicite par l'utilisateur via les endpoints métier existants. Le diagramme de
+classes ci-dessus reste donc inchangé.

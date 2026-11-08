@@ -45,6 +45,8 @@ tags:
     description: "Fil de discussion d'une tablée."
   - name: Médias
     description: "Photo de profil, image de message et message vocal (stockage R2)."
+  - name: Intelligence artificielle
+    description: "Assistants Workers AI pour la création de tablée et les suggestions."
 
 security:
   - bearerAuth: []
@@ -457,6 +459,100 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /ai/table-draft:
+    post:
+      tags: [Intelligence artificielle]
+      operationId: draftTableWithAi
+      summary: Enrichir une description en brouillon de tablée
+      description: |
+        À partir d'une description libre, Workers AI propose un brouillon
+        (titre, description, apports, places, durée). En cas d'indisponibilité,
+        un repli déterministe est renvoyé.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [description]
+              properties:
+                description:
+                  type: string
+                  minLength: 3
+                  maxLength: 1000
+                  example: "Un gratin maison à partager entre voisins."
+      responses:
+        '200':
+          description: Brouillon proposé.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [dishName, description, wantedContributions, seatsTotal, durationMinutes]
+                    properties:
+                      dishName: { type: string }
+                      description: { type: string }
+                      wantedContributions:
+                        type: array
+                        items:
+                          type: object
+                          required: [label]
+                          properties:
+                            label: { type: string }
+                            quantity: { type: number }
+                            unit: { type: string }
+                      seatsTotal: { type: integer }
+                      durationMinutes: { type: integer }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /ai/table-suggestions:
+    post:
+      tags: [Intelligence artificielle]
+      operationId: suggestTablesWithAi
+      summary: Proposer des plats selon une envie
+      description: "Propose jusqu'à 4 plats à partir d'une envie, d'une humeur ou d'une saison."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  minLength: 2
+                  maxLength: 200
+                  example: "Un repas réconfortant pour l'hiver"
+      responses:
+        '200':
+          description: Suggestions proposées.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [dishes]
+                    properties:
+                      dishes:
+                        type: array
+                        items: { type: string }
+                        example: ["Soupe de potiron", "Tartiflette"]
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
 components:
 

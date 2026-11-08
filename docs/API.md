@@ -11,3 +11,5 @@ Reference : `specs/openapi/openapi.yaml` (fait foi), parcours `specs/openapi/par
 - Idempotency-Key (UUID) sur POST participations : rejouer = renvoyer l'existant.
 - Confidentialite : `location.addressLine` exacte reservee hote + confirmes ;
   sinon quartier + position arrondie 300 m. Messages reserves hote + confirmes (OPEN|FULL).
+- IA (Workers AI) : `POST /ai/table-draft` (description -> brouillon) et
+  `POST /ai/table-suggestions` (envie -> plats). Repli déterministe si indisponible.

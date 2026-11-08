@@ -59,6 +59,7 @@ l'API, qui est la seule à connaître les règles du métier.
 | État & navigation | Pinia, vue-router | mémoriser la session et naviguer |
 | Authentification | Supabase Auth | « qui est qui », sans mot de passe |
 | API | Hono sur Cloudflare Workers | toutes les règles métier, base `/api/v1` |
+| IA | Cloudflare Workers AI | enrichir une description, proposer des plats |
 | Base de données | Cloudflare D1 (SQL) | tables, utilisateurs, messages, participations |
 | Fichiers | Cloudflare R2 (compatible S3) | avatars et photos |
 | Hébergement | Cloudflare Pages | les 3 sites publics |
