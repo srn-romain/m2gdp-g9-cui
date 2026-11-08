@@ -76,6 +76,15 @@ const nbFiltres = computed(
 );
 const compteTables = computed(() => `${total.value} ${total.value > 1 ? 'tablées' : 'tablée'}`);
 
+/** Suggestion du moment : un plat de saison, ignorable et cliquable. */
+const suggestionSaison = computed(() => {
+  const mois = new Date().getMonth();
+  if (mois >= 2 && mois <= 4) return 'Ratatouille';
+  if (mois >= 5 && mois <= 7) return 'Salade estivale';
+  if (mois >= 8 && mois <= 10) return 'Soupe de potiron';
+  return 'Tartiflette';
+});
+
 /** « Ce soir » : de 18 h à 2 h du matin. */
 function fenetreCeSoir(): { startsAfter?: string; startsBefore?: string } {
   if (!ceSoir.value) return {};
@@ -260,6 +269,15 @@ onMounted(load);
       <!-- Filtres rapides : créneau, régime et rayon. Les pastilles se partagent
            toute la largeur disponible, comme sur la maquette. -->
       <div v-if="view === 'liste'" class="flex flex-wrap items-stretch gap-2">
+        <button
+          type="button"
+          class="flex grow items-center justify-center gap-1.5 rounded-full bg-terracotta/10 px-3 py-2.5 text-label-sm text-terracotta transition-colors"
+          aria-label="Appliquer la suggestion de saison"
+          @click="q = suggestionSaison"
+        >
+          <span aria-hidden="true">🍂</span>
+          {{ suggestionSaison }}
+        </button>
         <button
           type="button"
           class="flex grow items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-label-sm transition-colors"
