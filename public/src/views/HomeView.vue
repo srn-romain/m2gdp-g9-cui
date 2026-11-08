@@ -35,6 +35,14 @@ const showAllPast = ref(false);
 
 const firstName = computed(() => meStore.profile?.firstName ?? '');
 const neighborhood = computed(() => meStore.profile?.neighborhood ?? '');
+const suggestionsMoment = computed(() => {
+  const mois = new Date().getMonth();
+  if (mois >= 2 && mois <= 4) return ['Ratatouille', 'Salade estivale', 'Galettes bretonnes'];
+  if (mois >= 5 && mois <= 7) return ['Salade estivale', 'Ratatouille', 'Tarte fine aux pommes'];
+  if (mois >= 8 && mois <= 10) return ['Soupe de potiron', 'Tartiflette', 'Risotto aux champignons'];
+  return ['Tartiflette', 'Soupe à l’oignon', 'Raclette'];
+});
+const urlSuggestion = (dish: string) => `/explorer?q=${encodeURIComponent(dish)}`;
 const visibleUpcoming = computed(() =>
   showAllUpcoming.value ? upcoming.value : upcoming.value.slice(0, 2),
 );
@@ -97,6 +105,21 @@ onMounted(async () => {
           alt=""
           class="absolute top-1/2 right-0 w-[5.5rem] -translate-y-1/2"
         />
+      </div>
+
+      <!-- Suggestions du moment -->
+      <div class="flex flex-col gap-2">
+        <h2 class="text-body-lg-strong text-ardoise">Suggestions du moment</h2>
+        <div class="flex flex-wrap gap-2">
+          <RouterLink
+            v-for="dish in suggestionsMoment"
+            :key="dish"
+            :to="urlSuggestion(dish)"
+            class="rounded-full bg-sauge/10 px-3 py-2 text-label-md text-sauge-fonce"
+          >
+            {{ dish }}
+          </RouterLink>
+        </div>
       </div>
 
       <!-- Chargement -->
