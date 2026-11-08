@@ -21,7 +21,7 @@ export function usePosition() {
           locating.value = false;
           resolve(null);
         },
-        { timeout: 8000, maximumAge: 600_000 },
+        { timeout: 3000, maximumAge: 600_000 },
       );
     });
   }

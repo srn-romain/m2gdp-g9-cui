@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { apiError } from '../errors';
 import { parsePagination, pageOf } from '../pagination';
 import { requireAuth } from '../auth';
-import { guestConfirmedCount, isPassed, newId, nowIso, toTableJson, type TableRow } from '../models';
+import { isPassed, newId, nowIso, parseWantedContributions, round300m, toTableJson, type TableRow } from '../models';
 
 export const tablesRoutes = new Hono<{ Bindings: Env }>();
 
@@ -61,17 +61,97 @@ tablesRoutes.get('/', async (c) => {
   const startsBefore = url.searchParams.get('startsBefore');
   const { page, pageSize } = parsePagination(url);
   const rows = await c.env.DB.prepare('SELECT * FROM tables WHERE status IN (\'OPEN\',\'FULL\') LIMIT 500').all<TableRow>();
-  let items: Array<Record<string, unknown> & { _d?: number | null }> = [];
+  const candidates: TableRow[] = [];
   for (const t of rows.results ?? []) {
     if (isPassed(t.startsAt, t.durationMinutes)) continue;
     if (veutVegetarien && !t.isVegetarian) continue;
     if (startsAfter && t.startsAt < startsAfter) continue;
     if (startsBefore && t.startsAt >= startsBefore) continue;
     if (q && !(t.dishName.toLowerCase().includes(q.toLowerCase()) || t.neighborhood.toLowerCase().includes(q.toLowerCase()))) continue;
-    const j = await toTableJson(c.env.DB, t, auth.userId) as Record<string, unknown>;
+    candidates.push(t);
+  }
+
+  type GuestCount = { tableId: string; n: number };
+  type HostRow = { id: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string };
+  type ViewerPart = { id: string; tableId: string; role: string; status: string; joinedAt: string };
+  type ContribRow = { id: string; participationId: string; label: string; quantity: string | null; unit: string | null; category: string; status: string; tableId: string; userId: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string };
+
+  const ids = candidates.map((t) => t.id);
+  const inList = (arr: string[]) => arr.map(() => '?').join(',');
+  const guestCounts = new Map<string, number>();
+  const viewerParts = new Map<string, ViewerPart>();
+  const hostRows = new Map<string, HostRow>();
+  const contribs = new Map<string, ContribRow[]>();
+
+  if (ids.length) {
+    const ph = inList(ids);
+    const g = await c.env.DB.prepare(`SELECT tableId, COUNT(*) AS n FROM participations WHERE tableId IN (${ph}) AND role = 'GUEST' AND status = 'CONFIRMED' GROUP BY tableId`).bind(...ids).all<GuestCount>();
+    for (const r of g.results ?? []) guestCounts.set(r.tableId, r.n);
+
+    const v = await c.env.DB.prepare(`SELECT id, tableId, role, status, joinedAt FROM participations WHERE tableId IN (${ph}) AND userId = ? AND status = 'CONFIRMED'`).bind(...ids, auth.userId).all<ViewerPart>();
+    for (const r of v.results ?? []) viewerParts.set(r.tableId, r);
+
+    const hostIds = [...new Set(candidates.map((t) => t.hostId))];
+    const hp = inList(hostIds);
+    const h = await c.env.DB.prepare(`SELECT id, firstName, avatarUrl, neighborhood, city FROM users WHERE id IN (${hp})`).bind(...hostIds).all<HostRow>();
+    for (const r of h.results ?? []) hostRows.set(r.id, r);
+
+    const co = await c.env.DB.prepare(`SELECT c.id, c.participationId, c.label, c.quantity, c.unit, c.category, c.status, p.tableId, p.userId, u.firstName, u.avatarUrl, u.neighborhood, u.city FROM contributions c JOIN participations p ON p.id = c.participationId JOIN users u ON u.id = p.userId WHERE p.tableId IN (${ph}) AND p.status = 'CONFIRMED' ORDER BY p.joinedAt ASC`).bind(...ids).all<ContribRow>();
+    for (const r of co.results ?? []) {
+      const arr = contribs.get(r.tableId) ?? [];
+      arr.push(r);
+      contribs.set(r.tableId, arr);
+    }
+  }
+
+  let items: Array<Record<string, unknown> & { _d?: number | null }> = [];
+  for (const t of candidates) {
+    const confirmed = guestCounts.get(t.id) ?? 0;
+    const seatsAvailable = Math.max(0, t.seatsTotal - confirmed);
+    let status = t.status;
+    if (status === 'OPEN' && seatsAvailable === 0) status = 'FULL';
+    else if (status === 'FULL' && seatsAvailable > 0) status = 'OPEN';
+    const viewerPart = viewerParts.get(t.id);
+    const isParticipant = !!viewerPart || t.hostId === auth.userId;
+    const exact = isParticipant;
     const d = lat != null ? havKm(lat, lng as number, t.latitude, t.longitude) : null;
     if (d != null && d > radiusKm) continue;
-    items.push({ ...j, _d: d });
+    const hostRow = hostRows.get(t.hostId);
+    const host = hostRow ? { id: hostRow.id, firstName: hostRow.firstName, avatarUrl: hostRow.avatarUrl ?? null, neighborhood: hostRow.neighborhood, city: hostRow.city } : null;
+    const tableContribs = contribs.get(t.id) ?? [];
+    const contributions = tableContribs.map((cr) => ({
+      id: cr.id, label: cr.label,
+      quantity: cr.quantity == null ? null : Number(cr.quantity),
+      unit: cr.unit, category: cr.category, status: cr.status,
+      participant: { id: cr.userId, firstName: cr.firstName, avatarUrl: cr.avatarUrl ?? null, neighborhood: cr.neighborhood, city: cr.city },
+    }));
+    let myParticipation = null;
+    if (viewerPart) {
+      const own = tableContribs.find((cr) => cr.participationId === viewerPart.id);
+      myParticipation = {
+        id: viewerPart.id, tableId: t.id, role: viewerPart.role, status: viewerPart.status, joinedAt: viewerPart.joinedAt,
+        contribution: own ? { id: own.id, label: own.label, quantity: own.quantity == null ? null : Number(own.quantity), unit: own.unit, category: own.category, status: own.status } : null,
+      };
+    }
+    items.push({
+      id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
+      title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
+      startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,
+      seatsAvailable, visibility: t.visibility, status,
+      isVegetarian: !!t.isVegetarian, hasAllergenNotice: !!t.hasAllergenNotice,
+      host,
+      location: {
+        neighborhood: t.neighborhood, city: t.city, postalCode: t.postalCode,
+        coordinates: { latitude: exact ? t.latitude : round300m(t.latitude), longitude: exact ? t.longitude : round300m(t.longitude) },
+        ...(exact && t.addressLine ? { addressLine: t.addressLine } : {}),
+      },
+      contributions,
+      wantedContributions: parseWantedContributions(t.wantedContributions),
+      myParticipation,
+      distanceMeters: null,
+      createdAt: t.createdAt,
+      _d: d,
+    });
   }
   if (sortBy === 'startsAt') items.sort((a, b) => String(a['startsAt']).localeCompare(String(b['startsAt'])));
   else if (sortBy === 'seatsAvailable') items.sort((a, b) => Number(b['seatsAvailable']) - Number(a['seatsAvailable']));

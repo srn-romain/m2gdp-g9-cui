@@ -66,7 +66,7 @@ onMounted(() => {
     maxZoom: 19,
     attribution: '© OpenStreetMap',
   }).addTo(map);
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.control.zoom({ position: 'topright' }).addTo(map);
   layer = L.layerGroup().addTo(map);
   render();
   // Le cadre est dimensionné par la mise en page flex : on resynchronise après le rendu.

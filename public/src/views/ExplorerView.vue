@@ -9,8 +9,6 @@ import {
   MapPin,
   Search,
   SlidersHorizontal,
-  Star,
-  Users,
   X,
 } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -32,10 +30,8 @@ import { listTables } from '@/lib/api';
 import {
   DIETARY_OPTIONS,
   formatDay,
-  formatDistance,
   formatSeatsCourt,
   formatTime,
-  initials,
   tableTitle,
 } from '@/lib/format';
 import type { DietaryPreference, Table } from '@/lib/types';
@@ -77,7 +73,6 @@ const nbFiltres = computed(
   () => regimes.value.length + (ceSoir.value ? 1 : 0) + (radiusKm.value !== RAYON_DEFAUT ? 1 : 0),
 );
 const compteTables = computed(() => `${total.value} ${total.value > 1 ? 'tablées' : 'tablée'}`);
-const distanceHote = computed(() => formatDistance(selected.value?.distanceMeters));
 
 /** « Ce soir » : de 18 h à 2 h du matin. */
 function fenetreCeSoir(): { startsAfter?: string; startsBefore?: string } {
@@ -96,7 +91,12 @@ async function ensurePosition() {
   if (position.latitude.value != null) return;
   await meStore.load();
   position.set(meStore.profile?.coordinates);
-  if (position.latitude.value == null) await position.locate();
+  if (position.latitude.value == null) {
+    // La géolocalisation ne bloque pas le premier rendu : on recharge à la résolution.
+    void position.locate().then((coords) => {
+      if (coords) void load();
+    });
+  }
 }
 
 async function load() {
@@ -161,7 +161,7 @@ onMounted(load);
     <!-- `pt-3` : la maquette laisse respirer la barre de recherche sous le titre. -->
     <div class="app-pad flex flex-1 flex-col gap-3 pt-3 pb-6">
       <!-- Recherche + quartier (liste) ou bouton de filtres (carte). -->
-      <div class="flex items-center gap-2">
+      <div class="sticky top-[60px] z-20 -mx-5 flex items-center gap-2 bg-creme px-5 pb-2">
         <InputGroup :class="CHAMP" class="min-w-0 flex-1">
           <InputGroupAddon align="inline-start">
             <Search class="size-4 text-sauge" :stroke-width="1.9" />
@@ -387,7 +387,7 @@ onMounted(load);
 
       <!-- Carte -->
       <template v-else>
-        <div class="relative -mx-1 min-h-[320px] flex-1 overflow-hidden rounded-2xl border border-ardoise/10">
+        <div class="relative -mx-5 -mb-6 flex-1 min-h-0 overflow-hidden">
           <TablesMap
             :tables="tables"
             :center="center"
@@ -396,74 +396,35 @@ onMounted(load);
           />
           <p
             v-if="position.locating.value"
-            class="absolute top-3 left-3 rounded-full bg-creme/95 px-3 py-1 text-micro text-secondaire"
+            class="absolute top-3 left-3 z-[800] rounded-full bg-creme/95 px-3 py-1 text-micro text-secondaire"
           >
             Localisation en cours…
           </p>
-        </div>
 
         <article
           v-if="selected"
-          class="flex flex-col gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)]"
+          class="absolute inset-x-3 bottom-3 z-[800] flex items-center justify-between gap-3 rounded-xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)]"
         >
-          <div class="flex gap-3">
-            <DishPhoto :dish-name="selected.dishName" :size="104" class="self-start" />
-            <div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
-              <h3 class="text-body-lg-strong leading-[22px] text-ardoise">{{ tableTitle(selected) }}</h3>
-              <div class="flex items-center gap-2">
-                <span
-                  class="grid size-9 shrink-0 place-items-center rounded-full bg-sauge/15 text-micro font-bold text-sauge-fonce"
-                  aria-hidden="true"
-                >
-                  {{ initials(selected.host?.firstName ?? '', '') }}
-                </span>
-                <p class="flex min-w-0 flex-wrap items-center gap-x-1.5 text-micro text-ardoise">
-                  <span class="font-bold">{{ selected.host?.firstName }}</span>
-                  <template v-if="selected.host?.rating && selected.host.rating.count > 0">
-                    <span class="text-ardoise/35" aria-hidden="true">·</span>
-                    <span class="flex items-center gap-1">
-                      <Star class="size-3.5 shrink-0 fill-etoile text-etoile" :stroke-width="0" />
-                      {{ selected.host.rating.average.toFixed(1).replace('.', ',') }}
-                      <span class="text-secondaire">({{ selected.host.rating.count }} avis)</span>
-                    </span>
-                  </template>
-                </p>
-              </div>
-            </div>
-            <span
-              class="grid size-9 shrink-0 place-items-center self-center rounded-full bg-sauge/12 text-sauge-fonce"
-              aria-hidden="true"
-            >
-              <ChevronRight class="size-4" :stroke-width="2.25" />
-            </span>
-          </div>
-
-          <div class="flex flex-col gap-1.5 text-body-sm text-secondaire">
-            <p class="flex items-center gap-2">
-              <CalendarDays class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
-              {{ formatDay(selected.startsAt) }} · {{ formatTime(selected.startsAt) }}
-            </p>
-            <p class="flex items-center gap-2">
-              <MapPin class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
-              {{ selected.location.neighborhood }}
-              <template v-if="distanceHote"> · {{ distanceHote }}</template>
-            </p>
-            <p class="flex items-center gap-2">
-              <Users class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
-              {{ formatSeatsCourt(selected.seatsAvailable) }}
+          <DishPhoto :dish-name="selected.dishName" :size="56" class="shrink-0 rounded-lg" />
+          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <h3 class="truncate text-body-md-strong text-ardoise">{{ tableTitle(selected) }}</h3>
+            <p class="flex flex-wrap items-center gap-x-2 text-micro text-secondaire">
+              <span>{{ formatDay(selected.startsAt) }} · {{ formatTime(selected.startsAt) }}</span>
+              <span>· {{ formatSeatsCourt(selected.seatsAvailable) }}</span>
             </p>
           </div>
-
-          <Button as-child size="lg" class="w-full">
-            <RouterLink :to="`/tables/${selected.id}`">
-              Voir la tablée
-              <ChevronRight data-icon="inline-end" />
-            </RouterLink>
-          </Button>
+          <RouterLink
+            :to="`/tables/${selected.id}`"
+            class="grid size-9 shrink-0 place-items-center rounded-full bg-terracotta text-creme"
+            aria-label="Voir la tablée"
+          >
+            <ChevronRight class="size-4" :stroke-width="2.25" />
+          </RouterLink>
         </article>
-        <p v-else class="text-center text-body-sm text-secondaire">
+        <p v-else class="absolute inset-x-3 bottom-3 z-[800] text-center text-body-sm text-secondaire">
           Aucune tablée à afficher sur la carte.
         </p>
+        </div>
       </template>
     </div>
 
