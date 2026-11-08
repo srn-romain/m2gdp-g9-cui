@@ -8,7 +8,8 @@ const MODELE = '@cf/meta/llama-3.2-3b-instruct';
 
 export const aiRoutes = new Hono<{ Bindings: Env }>();
 
-function extraireJson(texte: string): unknown {
+function extraireJson(texte: unknown): unknown {
+  if (typeof texte !== 'string') return null;
   const brut = texte.replace(/```json|```/g, '').trim();
   const debut = brut.indexOf('{');
   const fin = brut.lastIndexOf('}');
@@ -29,8 +30,8 @@ async function generer(c: { env: Env }, messages: Array<{ role: string; content:
         max_tokens: 500,
       }) as Promise<{ response?: string }>,
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-    ])) as { response?: string } | null;
-    return resultat?.response ?? null;
+    ])) as { response?: unknown } | null;
+    return typeof resultat?.response === 'string' ? resultat.response : null;
   } catch {
     return null;
   }
