@@ -23,10 +23,13 @@ function extraireJson(texte: string): unknown {
 async function generer(c: { env: Env }, messages: Array<{ role: string; content: string }>): Promise<string | null> {
   try {
     if (!c.env.AI) return null;
-    const resultat = (await c.env.AI.run(MODELE as string, {
-      messages,
-      max_tokens: 500,
-    })) as { response?: string };
+    const resultat = (await Promise.race([
+      c.env.AI.run(MODELE as string, {
+        messages,
+        max_tokens: 500,
+      }) as Promise<{ response?: string }>,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+    ])) as { response?: string } | null;
     return resultat?.response ?? null;
   } catch {
     return null;
