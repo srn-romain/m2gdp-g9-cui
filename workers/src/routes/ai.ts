@@ -1,0 +1,76 @@
+import { Hono } from 'hono';
+import type { Env } from '../env';
+import { apiError } from '../errors';
+import { requireAuth } from '../auth';
+
+// Choix documenté dans docs/feedback.md : Workers AI, modèle léger et rapide.
+const MODELE = '@cf/meta/llama-3.2-3b-instruct';
+
+export const aiRoutes = new Hono<{ Bindings: Env }>();
+
+function extraireJson(texte: string): unknown {
+  const brut = texte.replace(/```json|```/g, '').trim();
+  const debut = brut.indexOf('{');
+  const fin = brut.lastIndexOf('}');
+  if (debut < 0 || fin < 0) return null;
+  try {
+    return JSON.parse(brut.slice(debut, fin + 1));
+  } catch {
+    return null;
+  }
+}
+
+async function generer(c: { env: Env }, messages: Array<{ role: string; content: string }>): Promise<string | null> {
+  try {
+    if (!c.env.AI) return null;
+    const resultat = (await c.env.AI.run(MODELE as string, {
+      messages,
+      max_tokens: 500,
+    })) as { response?: string };
+    return resultat?.response ?? null;
+  } catch {
+    return null;
+  }
+}
+
+aiRoutes.post('/table-draft', async (c) => {
+  const auth = await requireAuth(c);
+  if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
+  const b = (await c.req.json().catch(() => null)) as { description?: string } | null;
+  const description = (b?.description ?? '').trim();
+  if (description.length < 3 || description.length > 1000) {
+    return apiError('VALIDATION_ERROR', 'description invalide.', { field: 'description' });
+  }
+  const reponse = await generer(c, [
+    {
+      role: 'system',
+      content:
+        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (nombre entier entre 2 et 12), durationMinutes (nombre entier).',
+    },
+    { role: 'user', content: description },
+  ]);
+
+  if (!reponse) {
+    return c.json({
+      data: {
+        dishName: description.slice(0, 60),
+        description,
+        wantedContributions: [{ label: 'Ingrédient', quantity: 1, unit: 'UNIT' }],
+        seatsTotal: 4,
+        durationMinutes: 120,
+      },
+    });
+  }
+
+  const parsed = extraireJson(reponse) as Record<string, unknown> | null;
+  const wanted = Array.isArray(parsed?.wantedContributions) ? parsed.wantedContributions : [{ label: 'Ingrédient', quantity: 1, unit: 'UNIT' }];
+  return c.json({
+    data: {
+      dishName: typeof parsed?.dishName === 'string' ? parsed.dishName : description.slice(0, 60),
+      description: typeof parsed?.description === 'string' ? parsed.description : description,
+      wantedContributions: wanted,
+      seatsTotal: Number.isFinite(Number(parsed?.seatsTotal)) ? Number(parsed?.seatsTotal) : 4,
+      durationMinutes: Number.isFinite(Number(parsed?.durationMinutes)) ? Number(parsed?.durationMinutes) : 120,
+    },
+  });
+});

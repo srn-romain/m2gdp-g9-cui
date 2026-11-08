@@ -8,6 +8,7 @@ import { tablesRoutes } from './routes/tables';
 import { participationsRoutes } from './routes/participations';
 import { messagesRoutes } from './routes/messages';
 import { avatarRoutes } from './routes/avatar';
+import { aiRoutes } from './routes/ai';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -32,6 +33,7 @@ v1.route('/tables', tablesRoutes);
 v1.route('/', participationsRoutes);
 v1.route('/', messagesRoutes);
 v1.route('/avatar', avatarRoutes);
+v1.route('/ai', aiRoutes);
 app.route('/api/v1', v1);
 
 app.notFound((c) => apiError('NOT_FOUND', 'Route introuvable.'));

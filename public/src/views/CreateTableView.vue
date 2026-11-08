@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Minus, Plus, Users } from '@lucide/vue';
+import { Minus, Plus, Sparkles, Users } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -13,7 +13,7 @@ import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
-import { createTable } from '@/lib/api';
+import { createTable, draftTableWithAi } from '@/lib/api';
 import { formatIngredientQuantity, fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
 import { CHAMP } from '@/lib/styles';
 import type { Coordinates, QuantityUnit } from '@/lib/types';
@@ -43,6 +43,7 @@ const isVegetarian = ref(false);
 const hasAllergenNotice = ref(false);
 const submitting = ref(false);
 const step = ref<1 | 2>(1);
+const aiLoading = ref(false);
 
 /** Ingrédients que l'hôte propose d'apporter : liste de courses de la tablée. */
 interface IngredientPropose {
@@ -131,6 +132,35 @@ async function resoudreLieu(): Promise<{
     city: profil.city,
     coordinates: profil.coordinates,
   };
+}
+
+async function enrichirAvecIa() {
+  const texte = description.value.trim();
+  if (texte.length < 3) {
+    toast.error('Décris ton repas pour que l’IA puisse t’aider.');
+    return;
+  }
+  aiLoading.value = true;
+  try {
+    const draft = await draftTableWithAi(texte);
+    if (draft.dishName) dishName.value = draft.dishName;
+    if (draft.description) description.value = draft.description;
+    if (draft.seatsTotal) seatsTotal.value = Math.min(30, Math.max(1, draft.seatsTotal));
+    if (Array.isArray(draft.wantedContributions)) {
+      ingredients.value = draft.wantedContributions.map((w, index) => ({
+        id: index + 1,
+        label: w.label,
+        quantity: typeof w.quantity === 'number' ? w.quantity : undefined,
+        unit: (w.unit as QuantityUnit | undefined) ?? undefined,
+      }));
+      prochainId = ingredients.value.length + 1;
+    }
+    toast.success('Brouillon proposé, ajuste si besoin.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'L’IA est indisponible pour le moment.');
+  } finally {
+    aiLoading.value = false;
+  }
 }
 
 async function submit() {
@@ -250,6 +280,17 @@ onMounted(async () => {
             placeholder="Un gratin maison à partager entre voisins."
             class="rounded-2xl border-ardoise/10 bg-surface text-body-md"
           />
+          <Button
+            type="button"
+            variant="outline"
+            size="default"
+            class="mt-2 w-full border-terracotta/40 text-terracotta"
+            :disabled="aiLoading"
+            @click="enrichirAvecIa"
+          >
+            <Sparkles data-icon="inline-start" class="text-terracotta" />
+            {{ aiLoading ? 'Génération…' : 'Enrichir avec l’IA' }}
+          </Button>
         </Field>
 
         <!-- Liste de courses : l'hôte propose, les invités choisissent. -->
