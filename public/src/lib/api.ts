@@ -147,6 +147,25 @@ export function listTables(params: TableQuery = {}): Promise<Page<Table>> {
   return apiGet<Page<Table>>(`${BASE}/tables${qs ? `?${qs}` : ''}`);
 }
 
+export interface TableSuggestions {
+  dishes: string[];
+  neighborhoods: string[];
+  cities: string[];
+}
+
+export function suggestTables(query: string): Promise<TableSuggestions> {
+  const texte = query.trim().toLowerCase();
+  if (DEMO_MODE) {
+    const uniq = (valeurs: string[]) => [...new Set(valeurs)];
+    return Promise.resolve({
+      dishes: uniq(DEMO_ALL.map((t) => t.dishName)).filter((v) => v.toLowerCase().includes(texte)).slice(0, 8),
+      neighborhoods: uniq(DEMO_ALL.map((t) => t.location.neighborhood)).filter((v) => v.toLowerCase().includes(texte)).slice(0, 8),
+      cities: uniq(DEMO_ALL.map((t) => t.location.city)).filter((v) => v.toLowerCase().includes(texte)).slice(0, 8),
+    });
+  }
+  return apiGet<{ data: TableSuggestions }>(`${BASE}/tables/suggestions?q=${encodeURIComponent(query.trim())}`).then((r) => r.data);
+}
+
 export const listMyTables = (scope: TableScope = 'upcoming', page = 1, pageSize = 20) =>
   DEMO_MODE
     ? Promise.resolve(demoPage(scope === 'past' ? DEMO_PAST : scope === 'upcoming' ? DEMO_UPCOMING : DEMO_ALL))

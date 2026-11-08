@@ -198,6 +198,32 @@ tablesRoutes.post('/', async (c) => {
   return c.json(await toTableJson(c.env.DB, row as TableRow, auth.userId), 201);
 });
 
+tablesRoutes.get('/suggestions', async (c) => {
+  const auth = await requireAuth(c);
+  if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
+  const q = (c.req.query('q') ?? '').trim();
+  if (q.length < 2 || q.length > 80) {
+    return c.json({ data: { dishes: [], neighborhoods: [], cities: [] } });
+  }
+  const term = q.toLowerCase();
+  const dishes = await c.env.DB.prepare(
+    "SELECT DISTINCT dishName AS value FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(dishName), lower(?)) > 0 ORDER BY dishName LIMIT 8",
+  ).bind(term).all<{ value: string }>();
+  const neighborhoods = await c.env.DB.prepare(
+    "SELECT DISTINCT neighborhood AS value FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(neighborhood), lower(?)) > 0 ORDER BY neighborhood LIMIT 8",
+  ).bind(term).all<{ value: string }>();
+  const cities = await c.env.DB.prepare(
+    "SELECT DISTINCT city AS value FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(city), lower(?)) > 0 ORDER BY city LIMIT 8",
+  ).bind(term).all<{ value: string }>();
+  return c.json({
+    data: {
+      dishes: (dishes.results ?? []).map((r) => r.value),
+      neighborhoods: (neighborhoods.results ?? []).map((r) => r.value),
+      cities: (cities.results ?? []).map((r) => r.value),
+    },
+  });
+});
+
 tablesRoutes.get('/:tableId', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');

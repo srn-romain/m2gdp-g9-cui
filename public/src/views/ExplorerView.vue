@@ -26,7 +26,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { usePosition } from '@/composables/usePosition';
-import { listTables } from '@/lib/api';
+import { listTables, suggestTables } from '@/lib/api';
 import {
   DIETARY_OPTIONS,
   formatDay,
@@ -53,6 +53,8 @@ const radiusKm = ref(RAYON_DEFAUT);
 const filtresOuverts = ref(false);
 const view = ref<'liste' | 'carte'>('liste');
 const selectedId = ref<string | null>(null);
+const suggestions = ref<Array<{ type: 'plat' | 'quartier' | 'ville'; value: string }>>([]);
+const suggestionsOuvertes = ref(false);
 
 const tables = ref<Table[]>([]);
 const total = ref(0);
@@ -151,6 +153,39 @@ watch(q, () => {
 });
 watch([ceSoir, regimes, radiusKm], () => void load(), { deep: true });
 
+let minuteurSuggestion: ReturnType<typeof setTimeout> | undefined;
+
+async function chargerSuggestions() {
+  const texte = q.value.trim();
+  if (texte.length < 2) {
+    suggestions.value = [];
+    suggestionsOuvertes.value = false;
+    return;
+  }
+  try {
+    const resultat = await suggestTables(texte);
+    suggestions.value = [
+      ...resultat.dishes.map((value) => ({ type: 'plat' as const, value })),
+      ...resultat.neighborhoods.map((value) => ({ type: 'quartier' as const, value })),
+      ...resultat.cities.map((value) => ({ type: 'ville' as const, value })),
+    ];
+    suggestionsOuvertes.value = suggestions.value.length > 0;
+  } catch {
+    suggestions.value = [];
+    suggestionsOuvertes.value = false;
+  }
+}
+
+function choisirSuggestion(suggestion: { type: 'plat' | 'quartier' | 'ville'; value: string }) {
+  q.value = suggestion.value;
+  suggestionsOuvertes.value = false;
+}
+
+watch(q, () => {
+  clearTimeout(minuteurSuggestion);
+  minuteurSuggestion = setTimeout(() => void chargerSuggestions(), 250);
+});
+
 onMounted(load);
 </script>
 
@@ -162,28 +197,47 @@ onMounted(load);
     <div class="app-pad flex flex-1 flex-col gap-3 pt-3 pb-6">
       <!-- Recherche + quartier (liste) ou bouton de filtres (carte). -->
       <div class="sticky top-[60px] z-20 -mx-5 flex items-center gap-2 bg-creme px-5 pb-2">
-        <InputGroup :class="CHAMP" class="min-w-0 flex-1">
-          <InputGroupAddon align="inline-start">
-            <Search class="size-4 text-sauge" :stroke-width="1.9" />
-          </InputGroupAddon>
-          <InputGroupInput
-            v-model="q"
-            type="search"
-            placeholder="Rechercher une tablée"
-            aria-label="Rechercher une tablée"
-            class="text-body-sm"
-          />
-          <InputGroupAddon v-if="q" align="inline-end">
+        <div class="relative min-w-0 flex-1">
+          <InputGroup :class="CHAMP" class="w-full">
+            <InputGroupAddon align="inline-start">
+              <Search class="size-4 text-sauge" :stroke-width="1.9" />
+            </InputGroupAddon>
+            <InputGroupInput
+              v-model="q"
+              type="search"
+              placeholder="Rechercher une tablée"
+              aria-label="Rechercher une tablée"
+              class="text-body-sm"
+            />
+            <InputGroupAddon v-if="q" align="inline-end">
+              <button
+                type="button"
+                class="grid size-6 place-items-center rounded-full text-ardoise/60"
+                aria-label="Effacer la recherche"
+                @click="q = ''"
+              >
+                <X class="size-4" :stroke-width="2" />
+              </button>
+            </InputGroupAddon>
+          </InputGroup>
+
+          <div
+            v-if="suggestionsOuvertes && suggestions.length"
+            class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-ardoise/10 bg-surface shadow-[0_8px_24px_rgba(43,43,43,.14)]"
+          >
             <button
+              v-for="(suggestion, index) in suggestions"
+              :key="index"
               type="button"
-              class="grid size-6 place-items-center rounded-full text-ardoise/60"
-              aria-label="Effacer la recherche"
-              @click="q = ''"
+              class="flex w-full items-center gap-2 px-4 py-2.5 text-body-md text-ardoise transition-colors hover:bg-ardoise/5"
+              @click="choisirSuggestion(suggestion)"
             >
-              <X class="size-4" :stroke-width="2" />
+              <Search class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
+              <span class="min-w-0 flex-1 truncate text-left">{{ suggestion.value }}</span>
+              <span class="shrink-0 text-micro uppercase tracking-wide text-secondaire">{{ suggestion.type }}</span>
             </button>
-          </InputGroupAddon>
-        </InputGroup>
+          </div>
+        </div>
 
         <LocationPill v-if="view === 'liste' && quartier" size="lg" :label="quartier" />
         <button
