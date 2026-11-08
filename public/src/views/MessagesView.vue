@@ -85,30 +85,44 @@ async function loadConversations() {
       listMyTables('past', 1, 10),
     ]);
     const tables = [...avenir.data, ...passees.data];
-    // Le dernier message donne l'aperçu et l'ordre de la liste (comme la maquette).
-    const derniers = await Promise.all(
-      tables.map((table) =>
-        listMessages(table.id, 1, 1)
-          .then((page) => page.data[0] as Message | undefined)
-          .catch(() => undefined),
-      ),
-    );
+    // Affichage immédiat sans attendre les derniers messages (évite le N+1).
     conversations.value = tables
-      .map((table, index) => {
-        const dernier = derniers[index];
-        return {
-          table,
-          apercu: apercuDe(dernier, table),
-          quand: formatStamp(dernier?.sentAt ?? table.createdAt),
-          tri: dernier?.sentAt ?? table.createdAt,
-        };
-      })
+      .map((table) => ({
+        table,
+        apercu: apercuDe(undefined, table),
+        quand: formatStamp(table.createdAt),
+        tri: table.createdAt,
+      }))
       .sort((a, b) => b.tri.localeCompare(a.tri));
+    // Les aperçus réels arrivent ensuite, sans bloquer le premier rendu.
+    void enrichirApercus(tables);
   } catch (e) {
     listError.value = e instanceof Error ? e.message : 'Chargement impossible.';
   } finally {
     listLoading.value = false;
   }
+}
+
+async function enrichirApercus(tables: Table[]) {
+  await Promise.all(
+    tables.map(async (table) => {
+      try {
+        const page = await listMessages(table.id, 1, 1);
+        const dernier = page.data[0] as Message | undefined;
+        const index = conversations.value.findIndex((c) => c.table.id === table.id);
+        if (index < 0) return;
+        conversations.value[index] = {
+          ...conversations.value[index],
+          apercu: apercuDe(dernier, table),
+          quand: formatStamp(dernier?.sentAt ?? table.createdAt),
+          tri: dernier?.sentAt ?? table.createdAt,
+        };
+        conversations.value = [...conversations.value].sort((a, b) => b.tri.localeCompare(a.tri));
+      } catch {
+        /* aperçu indisponible : on garde le libellé générique */
+      }
+    }),
+  );
 }
 
 /* --- Fil de discussion ---------------------------------------------------- */

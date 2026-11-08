@@ -28,8 +28,31 @@ messagesRoutes.get('/tables/:tableId/messages', async (c) => {
   const rows = await c.env.DB.prepare('SELECT * FROM messages WHERE tableId = ? ORDER BY sentAt DESC LIMIT ? OFFSET ?')
     .bind(tableId, pageSize, (page - 1) * pageSize).all();
   // Chaque message porte son auteur : le fil affiche qui a parlé.
-  const items = [];
-  for (const row of rows.results ?? []) items.push(await toMessageJson(c.env.DB, row as unknown as MessageRow));
+  const lignes = (rows.results ?? []) as unknown as MessageRow[];
+  const authorIds = [...new Set(lignes.map((row) => row.authorId))];
+  const authors = new Map<string, { id: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string }>();
+  if (authorIds.length) {
+    const ph = authorIds.map(() => '?').join(',');
+    const a = await c.env.DB.prepare('SELECT id, firstName, avatarUrl, neighborhood, city FROM users WHERE id IN (' + ph + ')')
+      .bind(...authorIds).all<{ id: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string }>();
+    for (const u of a.results ?? []) authors.set(u.id, u);
+  }
+  const items = lignes.map((row) => {
+    const author = authors.get(row.authorId);
+    return {
+      id: row.id,
+      tableId: row.tableId,
+      author: author
+        ? { id: author.id, firstName: author.firstName, avatarUrl: author.avatarUrl ?? null, neighborhood: author.neighborhood, city: author.city }
+        : null,
+      type: row.type,
+      text: row.text,
+      audioUrl: row.audioUrl,
+      imageUrl: row.imageUrl,
+      durationSeconds: row.durationSeconds,
+      sentAt: row.sentAt,
+    };
+  });
   return c.json(pageOf(items, total?.n ?? 0, page, pageSize));
 });
 

@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { apiError } from '../errors';
 import { parsePagination, pageOf } from '../pagination';
 import { requireAuth } from '../auth';
-import { nowIso, toTableJson, type TableRow } from '../models';
+import { isPassed, nowIso, parseWantedContributions, round300m, type TableRow } from '../models';
 
 const DIETS = ['VEGETARIAN','VEGAN','NO_PORK','NO_GLUTEN','NO_LACTOSE','HALAL','KOSHER','NO_NUTS'];
 
@@ -78,15 +78,90 @@ meRoutes.get('/tables', async (c) => {
     `SELECT t.* FROM tables t JOIN participations p ON p.tableId = t.id
      WHERE p.userId = ? AND p.status = 'CONFIRMED' ORDER BY t.startsAt ASC LIMIT 500`,
   ).bind(auth.userId).all<TableRow>();
-  const now = new Date();
-  const items: unknown[] = [];
-  for (const t of rows.results ?? []) {
-    const j = await toTableJson(c.env.DB, t, auth.userId);
-    const past = (j as { status: string }).status === 'PASSED' || (j as { startsAt: string }).startsAt <= now.toISOString();
-    if (scope === 'upcoming' && past) continue;
-    if (scope === 'past' && !past) continue;
-    items.push(j);
+  const candidates = (rows.results ?? []).filter((t) => {
+    const past = isPassed(t.startsAt, t.durationMinutes);
+    if (scope === 'upcoming' && past) return false;
+    if (scope === 'past' && !past) return false;
+    return true;
+  });
+
+  type GuestCount = { tableId: string; n: number };
+  type HostRow = { id: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string };
+  type ViewerPart = { id: string; tableId: string; role: string; status: string; joinedAt: string };
+  type ContribRow = { id: string; participationId: string; label: string; quantity: string | null; unit: string | null; category: string; status: string; tableId: string; userId: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string };
+
+  const ids = candidates.map((t) => t.id);
+  const inList = (arr: string[]) => arr.map(() => '?').join(',');
+  const guestCounts = new Map<string, number>();
+  const viewerParts = new Map<string, ViewerPart>();
+  const hostRows = new Map<string, HostRow>();
+  const contribs = new Map<string, ContribRow[]>();
+
+  if (ids.length) {
+    const ph = inList(ids);
+    const g = await c.env.DB.prepare(`SELECT tableId, COUNT(*) AS n FROM participations WHERE tableId IN (${ph}) AND role = 'GUEST' AND status = 'CONFIRMED' GROUP BY tableId`).bind(...ids).all<GuestCount>();
+    for (const r of g.results ?? []) guestCounts.set(r.tableId, r.n);
+
+    const v = await c.env.DB.prepare(`SELECT id, tableId, role, status, joinedAt FROM participations WHERE tableId IN (${ph}) AND userId = ? AND status = 'CONFIRMED'`).bind(...ids, auth.userId).all<ViewerPart>();
+    for (const r of v.results ?? []) viewerParts.set(r.tableId, r);
+
+    const hostIds = [...new Set(candidates.map((t) => t.hostId))];
+    const hp = inList(hostIds);
+    const h = await c.env.DB.prepare(`SELECT id, firstName, avatarUrl, neighborhood, city FROM users WHERE id IN (${hp})`).bind(...hostIds).all<HostRow>();
+    for (const r of h.results ?? []) hostRows.set(r.id, r);
+
+    const co = await c.env.DB.prepare(`SELECT c.id, c.participationId, c.label, c.quantity, c.unit, c.category, c.status, p.tableId, p.userId, u.firstName, u.avatarUrl, u.neighborhood, u.city FROM contributions c JOIN participations p ON p.id = c.participationId JOIN users u ON u.id = p.userId WHERE p.tableId IN (${ph}) AND p.status = 'CONFIRMED' ORDER BY p.joinedAt ASC`).bind(...ids).all<ContribRow>();
+    for (const r of co.results ?? []) {
+      const arr = contribs.get(r.tableId) ?? [];
+      arr.push(r);
+      contribs.set(r.tableId, arr);
+    }
   }
+
+  const items = candidates.map((t) => {
+    const confirmed = guestCounts.get(t.id) ?? 0;
+    const seatsAvailable = Math.max(0, t.seatsTotal - confirmed);
+    let status = t.status;
+    if (status === 'OPEN' && seatsAvailable === 0) status = 'FULL';
+    else if (status === 'FULL' && seatsAvailable > 0) status = 'OPEN';
+    const viewerPart = viewerParts.get(t.id);
+    const exact = !!viewerPart || t.hostId === auth.userId;
+    const hostRow = hostRows.get(t.hostId);
+    const host = hostRow ? { id: hostRow.id, firstName: hostRow.firstName, avatarUrl: hostRow.avatarUrl ?? null, neighborhood: hostRow.neighborhood, city: hostRow.city } : null;
+    const tableContribs = contribs.get(t.id) ?? [];
+    const contributions = tableContribs.map((cr) => ({
+      id: cr.id, label: cr.label,
+      quantity: cr.quantity == null ? null : Number(cr.quantity),
+      unit: cr.unit, category: cr.category, status: cr.status,
+      participant: { id: cr.userId, firstName: cr.firstName, avatarUrl: cr.avatarUrl ?? null, neighborhood: cr.neighborhood, city: cr.city },
+    }));
+    let myParticipation = null;
+    if (viewerPart) {
+      const own = tableContribs.find((cr) => cr.participationId === viewerPart.id);
+      myParticipation = {
+        id: viewerPart.id, tableId: t.id, role: viewerPart.role, status: viewerPart.status, joinedAt: viewerPart.joinedAt,
+        contribution: own ? { id: own.id, label: own.label, quantity: own.quantity == null ? null : Number(own.quantity), unit: own.unit, category: own.category, status: own.status } : null,
+      };
+    }
+    return {
+      id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
+      title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
+      startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,
+      seatsAvailable, visibility: t.visibility, status,
+      isVegetarian: !!t.isVegetarian, hasAllergenNotice: !!t.hasAllergenNotice,
+      host,
+      location: {
+        neighborhood: t.neighborhood, city: t.city, postalCode: t.postalCode,
+        coordinates: { latitude: exact ? t.latitude : round300m(t.latitude), longitude: exact ? t.longitude : round300m(t.longitude) },
+        ...(exact && t.addressLine ? { addressLine: t.addressLine } : {}),
+      },
+      contributions,
+      wantedContributions: parseWantedContributions(t.wantedContributions),
+      myParticipation,
+      distanceMeters: null,
+      createdAt: t.createdAt,
+    };
+  });
   const total = items.length;
   return c.json(pageOf(items.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize));
 });
