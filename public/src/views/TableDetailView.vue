@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { CalendarClock, Check, MapPin, TriangleAlert, Users } from '@lucide/vue';
+import { CalendarClock, Check, MapPin, Share2, TriangleAlert, Users } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
 import AppBar from '@/components/AppBar.vue';
 import DishPhoto from '@/components/DishPhoto.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,10 +21,11 @@ import {
   formatTime,
   tableTitle,
 } from '@/lib/format';
-import { getTable } from '@/lib/api';
-import type { Table } from '@/lib/types';
+import { getTable, joinTable } from '@/lib/api';
+import type { ContributionCategory, QuantityUnit, Table } from '@/lib/types';
 
 const route = useRoute();
+const router = useRouter();
 const tableId = computed(() => String(route.params.id));
 const table = ref<Table | null>(null);
 const loading = ref(true);
@@ -37,6 +40,66 @@ const isPast = computed(() => table.value?.status === 'PASSED');
 const canJoin = computed(
   () => table.value?.status === 'OPEN' && (table.value?.seatsAvailable ?? 0) > 0,
 );
+
+const participationOuverte = ref(false);
+const apportChoisi = ref<string | null>(null);
+const apportLibre = ref('');
+const joining = ref(false);
+const idempotencyKey = crypto.randomUUID();
+
+function ouvrirParticipation() {
+  apportChoisi.value = wanted.value[0]?.label ?? null;
+  apportLibre.value = '';
+  participationOuverte.value = true;
+}
+
+async function rejoindre() {
+  if (!table.value || joining.value) return;
+  const libre = apportLibre.value.trim();
+  let contribution: {
+    label: string;
+    category: ContributionCategory;
+    quantity?: number;
+    unit?: QuantityUnit;
+  };
+  if (libre) {
+    contribution = { label: libre, category: 'INGREDIENT' };
+  } else if (apportChoisi.value) {
+    const item = wanted.value.find((w) => w.label === apportChoisi.value);
+    contribution = {
+      label: item?.label ?? apportChoisi.value,
+      category: 'INGREDIENT',
+      quantity: item?.quantity ?? undefined,
+      unit: item?.unit ?? undefined,
+    };
+  } else {
+    contribution = { label: 'Je ne fais pas les courses', category: 'NONE' };
+  }
+  joining.value = true;
+  try {
+    await joinTable(table.value.id, { contribution }, idempotencyKey);
+    await router.replace(`/tables/${table.value.id}/confirme`);
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'La participation a échoué.');
+  } finally {
+    joining.value = false;
+  }
+}
+
+async function partager() {
+  if (!table.value) return;
+  const url = `${window.location.origin}/tables/${table.value.id}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: tableTitle(table.value), url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Lien copié.');
+    }
+  } catch {
+    /* partage annulé */
+  }
+}
 
 onMounted(async () => {
   try {
@@ -181,20 +244,70 @@ onMounted(async () => {
         </section>
       </div>
 
-      <div class="app-pad mt-auto pt-6">
-        <Button v-if="isHost" as-child size="lg" variant="secondary" class="w-full">
-          <RouterLink :to="`/messages/${table.id}`">Écrire au groupe</RouterLink>
-        </Button>
+      <div class="app-pad mt-auto flex flex-col gap-3 pt-6">
+        <template v-if="isHost">
+          <Button size="lg" variant="secondary" class="w-full" @click="partager">
+            <Share2 data-icon="inline-start" />
+            Partager la tablée
+          </Button>
+          <Button as-child size="lg" variant="secondary" class="w-full">
+            <RouterLink :to="`/messages/${table.id}`">Écrire au groupe</RouterLink>
+          </Button>
+        </template>
         <Button v-else-if="joined" as-child size="lg" variant="secondary" class="w-full">
           <RouterLink :to="`/messages/${table.id}`">Écrire à {{ table.host?.firstName ?? 'l’hôte' }}</RouterLink>
         </Button>
-        <Button v-else-if="canJoin" as-child size="lg" class="w-full">
-          <RouterLink :to="`/tables/${table.id}/participer`">Participer à la tablée</RouterLink>
+        <Button v-else-if="canJoin" size="lg" class="w-full" @click="ouvrirParticipation">
+          Participer à la tablée
         </Button>
         <Button v-else size="lg" class="w-full" disabled>
           {{ isPast ? 'Tablée passée' : 'Plus de place' }}
         </Button>
       </div>
+
+      <Drawer v-model:open="participationOuverte">
+        <DrawerContent class="bg-creme">
+          <DrawerHeader class="app-pad text-left">
+            <DrawerTitle class="text-title-lg font-titres text-sauge">Ta contribution</DrawerTitle>
+          </DrawerHeader>
+          <div class="app-pad flex flex-col gap-3 pb-8">
+            <div v-if="wanted.length" class="flex flex-col gap-2">
+              <button
+                v-for="item in wanted"
+                :key="item.label"
+                type="button"
+                class="flex items-center justify-between rounded-xl border px-3 py-2.5 text-body-md text-ardoise"
+                :class="apportChoisi === item.label ? 'border-terracotta bg-terracotta/10' : 'border-ardoise/10'"
+                @click="apportChoisi = item.label; apportLibre = ''"
+              >
+                <span>{{ item.label }}</span>
+                <Check v-if="apportChoisi === item.label" class="size-4 text-terracotta" :stroke-width="2.25" />
+              </button>
+            </div>
+
+            <input
+              v-model="apportLibre"
+              type="text"
+              placeholder="J'apporte autre chose…"
+              class="h-12 w-full rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
+              @input="apportChoisi = null"
+            />
+
+            <button
+              type="button"
+              class="rounded-xl border px-3 py-2.5 text-body-md"
+              :class="!apportChoisi && !apportLibre ? 'border-terracotta bg-terracotta/10 text-ardoise' : 'border-ardoise/10 text-ardoise'"
+              @click="apportChoisi = null; apportLibre = ''"
+            >
+              Je ne fais pas les courses
+            </button>
+
+            <Button size="lg" class="w-full" :disabled="joining" @click="rejoindre">
+              {{ joining ? 'Envoi…' : 'Confirmer ma participation' }}
+            </Button>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </template>
   </div>
 </template>

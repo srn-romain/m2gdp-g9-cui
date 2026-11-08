@@ -42,6 +42,7 @@ const seatsTotal = ref(4);
 const isVegetarian = ref(false);
 const hasAllergenNotice = ref(false);
 const submitting = ref(false);
+const step = ref<1 | 2>(1);
 
 /** Ingrédients que l'hôte propose d'apporter : liste de courses de la tablée. */
 interface IngredientPropose {
@@ -101,6 +102,9 @@ const canSubmit = computed(
     Boolean(time.value) &&
     lieu.value.trim().length > 1 &&
     !creneauPasse.value,
+);
+const etape1Valide = computed(
+  () => dishName.value.trim().length > 0 && Boolean(date.value) && Boolean(time.value) && !creneauPasse.value,
 );
 
 /** L'adresse choisie porte le quartier, la ville et les coordonnées de la tablée. */
@@ -179,8 +183,14 @@ onMounted(async () => {
         Partage ton plat et laisse tes voisins choisir ce qu'ils apportent.
       </p>
 
+      <div class="flex items-center gap-2 text-label-sm">
+        <span :class="step === 1 ? 'text-terracotta' : 'text-secondaire'">1 · Le plat</span>
+        <span class="h-px flex-1 bg-ardoise/10"></span>
+        <span :class="step === 2 ? 'text-terracotta' : 'text-secondaire'">2 · La logistique</span>
+      </div>
+
       <FieldGroup>
-        <Field>
+        <Field v-if="step === 1">
           <FieldLabel for="table-dish">Titre de la tablée</FieldLabel>
           <InputGroup :class="CHAMP">
             <InputGroupInput
@@ -195,7 +205,7 @@ onMounted(async () => {
           </FieldDescription>
         </Field>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div v-if="step === 1" class="grid grid-cols-2 gap-3">
           <Field>
             <FieldLabel for="table-date">Date</FieldLabel>
             <InputGroup :class="CHAMP">
@@ -209,11 +219,11 @@ onMounted(async () => {
             </InputGroup>
           </Field>
         </div>
-        <p v-if="creneauPasse" class="-mt-2 text-micro text-terracotta">
+        <p v-if="step === 1 && creneauPasse" class="-mt-2 text-micro text-terracotta">
           Choisis une date et une heure à venir.
         </p>
 
-        <Field>
+        <Field v-if="step === 2">
           <FieldLabel for="table-lieu">Lieu</FieldLabel>
           <AddressField
             id="table-lieu"
@@ -223,7 +233,7 @@ onMounted(async () => {
           />
         </Field>
 
-        <Field orientation="horizontal" class="items-center justify-between">
+        <Field v-if="step === 2" orientation="horizontal" class="items-center justify-between">
           <FieldLabel>Nombre de places</FieldLabel>
           <div class="flex items-center gap-2">
             <Users class="size-4 text-secondaire" :stroke-width="1.75" />
@@ -231,7 +241,7 @@ onMounted(async () => {
           </div>
         </Field>
 
-        <Field>
+        <Field v-if="step === 1">
           <FieldLabel for="table-description">Description</FieldLabel>
           <Textarea
             id="table-description"
@@ -243,14 +253,14 @@ onMounted(async () => {
         </Field>
 
         <!-- Liste de courses : l'hôte propose, les invités choisissent. -->
-        <div class="flex flex-col gap-1">
+        <div v-if="step === 2" class="flex flex-col gap-1">
           <h2 class="text-title-md font-titres text-sauge-fonce">Ce que les invités apportent</h2>
           <p class="text-body-sm text-secondaire">
             Propose des ingrédients, tes voisins choisiront ce qu'ils apportent.
           </p>
         </div>
 
-        <ul v-if="ingredients.length" class="flex flex-col gap-2">
+        <ul v-if="step === 2 && ingredients.length" class="flex flex-col gap-2">
           <li
             v-for="ingredient in ingredients"
             :key="ingredient.id"
@@ -280,7 +290,7 @@ onMounted(async () => {
         </ul>
 
         <div
-          v-if="ajoutOuvert"
+          v-if="step === 2 && ajoutOuvert"
           class="flex flex-col gap-3 rounded-2xl border border-ardoise/12 bg-surface p-3"
         >
           <Field>
@@ -340,7 +350,7 @@ onMounted(async () => {
         </div>
 
         <Button
-          v-else
+          v-else-if="step === 2"
           type="button"
           variant="outline"
           size="default"
@@ -351,20 +361,30 @@ onMounted(async () => {
           Ajouter un ingrédient
         </Button>
 
-        <Field orientation="horizontal" class="items-center justify-between">
+        <Field v-if="step === 2" orientation="horizontal" class="items-center justify-between">
           <FieldLabel for="table-vegetarian">Plat végétarien</FieldLabel>
           <Switch id="table-vegetarian" v-model="isVegetarian" />
         </Field>
-        <Field orientation="horizontal" class="items-center justify-between">
+        <Field v-if="step === 2" orientation="horizontal" class="items-center justify-between">
           <FieldLabel for="table-allergens">Allergènes indiqués</FieldLabel>
           <Switch id="table-allergens" v-model="hasAllergenNotice" />
         </Field>
       </FieldGroup>
 
       <div class="mt-auto pt-4">
-        <Button type="submit" size="lg" class="w-full" :disabled="submitting || !canSubmit">
-          {{ submitting ? 'Publication…' : 'Publier ma tablée' }}
-        </Button>
+        <div v-if="step === 1" class="flex flex-col gap-2">
+          <Button type="button" size="lg" class="w-full" :disabled="!etape1Valide" @click="step = 2">
+            Continuer
+          </Button>
+        </div>
+        <div v-else class="flex flex-col gap-2">
+          <Button type="submit" size="lg" class="w-full" :disabled="submitting || !canSubmit">
+            {{ submitting ? 'Publication…' : 'Publier ma tablée' }}
+          </Button>
+          <Button type="button" variant="ghost" size="default" class="w-full" @click="step = 1">
+            Retour
+          </Button>
+        </div>
       </div>
     </form>
   </div>

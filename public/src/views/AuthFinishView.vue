@@ -20,15 +20,15 @@ const error = ref<string | null>(null);
  * On ne se fie pas à `isNewUser` de Supabase (peu fiable selon les environnements) mais
  * au profil réellement stocké dans D1 : s'il porte déjà un prénom, le compte existait.
  */
-async function applySignupDraft() {
+async function applySignupDraft(): Promise<boolean> {
   const draft = readSignupDraft();
-  if (!draft) return;
+  if (!draft) return false;
 
   const profil = await meStore.load(true);
   if (profil?.firstName) {
     clearSignupDraft();
     toast.info('Ce compte existait déjà : tu es connecté à ton espace.');
-    return;
+    return false;
   }
   const payload: UserUpdate = {
     firstName: draft.firstName,
@@ -49,13 +49,15 @@ async function applySignupDraft() {
   }
   await meStore.save(payload);
   clearSignupDraft();
+  return true;
 }
 
 onMounted(async () => {
   try {
     await authStore.finishMagicLink();
-    await applySignupDraft();
-    await router.replace('/');
+    const nouveau = await applySignupDraft();
+    if (nouveau) toast.success('Bienvenue ! Trouve ta première tablée.');
+    await router.replace(nouveau ? '/explorer' : '/');
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Connexion impossible.';
   }
