@@ -3,14 +3,10 @@ import {
   ArrowLeft,
   ArrowUp,
   Camera,
-  ChevronRight,
-  Mic,
   MoreVertical,
-  Play,
-  Square,
   Users,
 } from '@lucide/vue';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 import illustration from '@/assets/bonjour.png';
@@ -19,6 +15,7 @@ import AppBar from '@/components/AppBar.vue';
 import DishPhoto from '@/components/DishPhoto.vue';
 import MascotBubble from '@/components/MascotBubble.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -124,6 +121,7 @@ const draft = ref('');
 const sending = ref(false);
 const scroller = ref<HTMLElement | null>(null);
 const menuOuvert = ref(false);
+const contributionsOuvertes = ref(false);
 const champPhoto = ref<HTMLInputElement | null>(null);
 
 const titre = computed(() => (table.value ? tableTitle(table.value) : 'Discussion'));
@@ -177,10 +175,10 @@ async function envoyerTexte() {
   }
 }
 
-/** Upload d'un média puis publication du message correspondant. */
-async function publierMedia(fichier: Blob, type: 'IMAGE' | 'AUDIO'): Promise<void> {
+/** Upload d'une image puis publication du message correspondant. */
+async function publierMedia(fichier: Blob): Promise<void> {
   if (!tableId.value) return;
-  const contentType = fichier.type || (type === 'IMAGE' ? 'image/jpeg' : 'audio/webm');
+  const contentType = fichier.type || 'image/jpeg';
   let url = '';
   if (DEMO_MODE) {
     // Hors ligne : on garde le fichier en data URL pour que la relecture fonctionne.
@@ -194,11 +192,7 @@ async function publierMedia(fichier: Blob, type: 'IMAGE' | 'AUDIO'): Promise<voi
     await uploadMedia(uploadUrl, fichier, contentType);
     url = mediaUrl(key);
   }
-  const corps =
-    type === 'IMAGE'
-      ? { type, imageUrl: url }
-      : { type, audioUrl: url, durationSeconds: dureeAudio.value };
-  await ajouter(await postMessage(tableId.value, corps));
+  await ajouter(await postMessage(tableId.value, { type: 'IMAGE', imageUrl: url }));
 }
 
 async function envoyerPhoto(evenement: Event) {
@@ -216,88 +210,12 @@ async function envoyerPhoto(evenement: Event) {
   }
   sending.value = true;
   try {
-    await publierMedia(fichier, 'IMAGE');
+    await publierMedia(fichier);
   } catch (e) {
     toast.error(e instanceof Error ? e.message : "La photo n'est pas partie.");
   } finally {
     sending.value = false;
   }
-}
-
-/* --- Message vocal -------------------------------------------------------- */
-
-const enregistreur = ref<MediaRecorder | null>(null);
-const dureeAudio = ref(0);
-let morceaux: Blob[] = [];
-let debutEnregistrement = 0;
-
-async function basculerMicro() {
-  if (enregistreur.value) {
-    enregistreur.value.stop();
-    return;
-  }
-  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-    toast.error("L'enregistrement vocal n'est pas disponible sur cet appareil.");
-    return;
-  }
-  try {
-    const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(flux);
-    morceaux = [];
-    recorder.ondataavailable = (evenement) => {
-      if (evenement.data.size) morceaux.push(evenement.data);
-    };
-    recorder.onstop = async () => {
-      flux.getTracks().forEach((piste) => piste.stop());
-      enregistreur.value = null;
-      dureeAudio.value = Math.max(1, Math.round((Date.now() - debutEnregistrement) / 1000));
-      const blob = new Blob(morceaux, { type: recorder.mimeType || 'audio/webm' });
-      sending.value = true;
-      try {
-        await publierMedia(blob, 'AUDIO');
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Le message vocal n'est pas parti.");
-      } finally {
-        sending.value = false;
-      }
-    };
-    debutEnregistrement = Date.now();
-    recorder.start();
-    enregistreur.value = recorder;
-  } catch {
-    toast.error("Accès au micro refusé.");
-  }
-}
-
-/* --- Lecture des messages vocaux ------------------------------------------ */
-
-const audioEnCours = ref<string | null>(null);
-let lecteur: HTMLAudioElement | null = null;
-
-function basculerLecture(message: Message) {
-  const source = message.audioUrl ?? '';
-  if (!/^(https?:|data:|blob:)/i.test(source)) {
-    toast.info("L'écoute n'est pas disponible pour cet extrait de démonstration.");
-    return;
-  }
-  if (audioEnCours.value === message.id) {
-    lecteur?.pause();
-    audioEnCours.value = null;
-    return;
-  }
-  lecteur?.pause();
-  lecteur = new Audio(source);
-  lecteur.onended = () => {
-    audioEnCours.value = null;
-  };
-  void lecteur.play();
-  audioEnCours.value = message.id;
-}
-
-/** Hauteur des barres de l'onde : stable pour un message donné. */
-function onde(message: Message): number[] {
-  const graine = [...message.id].reduce((total, caractere) => total + caractere.charCodeAt(0), 0);
-  return Array.from({ length: 22 }, (_, index) => 6 + ((graine + index * 7) % 15));
 }
 
 /* --- Cycle de vie --------------------------------------------------------- */
@@ -316,10 +234,6 @@ watch(tableId, (id) => {
   else void loadConversations();
 });
 
-onBeforeUnmount(() => {
-  lecteur?.pause();
-  enregistreur.value?.stop();
-});
 </script>
 
 <template>
@@ -423,31 +337,7 @@ onBeforeUnmount(() => {
                   alt="Photo partagée"
                   class="max-h-64 w-56 rounded-xl object-cover"
                 />
-                <button
-                  v-else-if="message.type === 'AUDIO'"
-                  type="button"
-                  class="flex items-center gap-2"
-                  :aria-label="`Écouter le message vocal de ${message.durationSeconds ?? 0} secondes`"
-                  @click="basculerLecture(message)"
-                >
-                  <span class="grid size-8 shrink-0 place-items-center rounded-full bg-terracotta text-creme">
-                    <Square v-if="audioEnCours === message.id" class="size-3.5" :stroke-width="2.5" />
-                    <Play v-else class="size-4 fill-current" :stroke-width="0" />
-                  </span>
-                  <span class="flex items-end gap-[3px]" aria-hidden="true">
-                    <span
-                      v-for="(hauteur, index) in onde(message)"
-                      :key="index"
-                      class="w-[3px] rounded-full bg-sauge/60"
-                      :style="{ height: `${hauteur}px` }"
-                    />
-                  </span>
-                  <span class="text-micro text-secondaire">
-                    {{ Math.floor((message.durationSeconds ?? 0) / 60) }}:{{
-                      String((message.durationSeconds ?? 0) % 60).padStart(2, '0')
-                    }}
-                  </span>
-                </button>
+                <p v-else-if="message.type === 'AUDIO'" class="text-micro text-secondaire">Message vocal</p>
                 <p v-else class="whitespace-pre-line">{{ message.text }}</p>
               </div>
               <span class="shrink-0 pb-1 text-micro text-secondaire">{{ formatClock(message.sentAt) }}</span>
@@ -455,33 +345,6 @@ onBeforeUnmount(() => {
           </div>
         </li>
       </ul>
-    </div>
-
-    <div v-if="contributions.length" class="app-pad pb-2">
-      <div class="rounded-2xl bg-sauge/12 p-3">
-        <p class="text-micro text-secondaire">Contributions partagées</p>
-        <ul class="mt-1.5 flex flex-col gap-1.5">
-          <li
-            v-for="contribution in contributions"
-            :key="contribution.id"
-            class="flex items-center gap-3 rounded-xl bg-surface/80 p-2"
-          >
-            <DishPhoto :dish-name="contribution.label" :size="40" rounded="rounded-full" />
-            <span class="flex min-w-0 flex-1 flex-col">
-              <span class="truncate text-body-md text-ardoise">
-                <span class="font-bold">{{ contribution.label }}</span>
-                <template v-if="contribution.participant">
-                  · {{ contribution.participant.firstName }}
-                </template>
-              </span>
-              <span v-if="formatQuantity(contribution.quantity, contribution.unit)" class="text-micro text-secondaire">
-                {{ formatQuantity(contribution.quantity, contribution.unit) }}
-              </span>
-            </span>
-            <ChevronRight class="size-4 shrink-0 text-sauge" :stroke-width="2" />
-          </li>
-        </ul>
-      </div>
     </div>
 
     <form
@@ -519,15 +382,44 @@ onBeforeUnmount(() => {
       <button
         v-else
         type="button"
-        class="grid size-11 shrink-0 place-items-center rounded-full transition-colors"
-        :class="enregistreur ? 'bg-terracotta text-creme' : 'bg-sauge/12 text-sauge-fonce hover:bg-sauge/20'"
-        :aria-label="enregistreur ? 'Arrêter l’enregistrement' : 'Enregistrer un message vocal'"
-        @click="basculerMicro"
+        class="grid size-11 shrink-0 place-items-center rounded-full bg-sauge/12 text-sauge-fonce transition-colors hover:bg-sauge/20"
+        aria-label="Voir les contributions"
+        @click="contributionsOuvertes = true"
       >
-        <Square v-if="enregistreur" class="size-4" :stroke-width="2.5" />
-        <Mic v-else class="size-5" :stroke-width="2" />
+        <Users class="size-5" :stroke-width="2" />
       </button>
     </form>
+
+    <Drawer v-model:open="contributionsOuvertes">
+      <DrawerContent class="bg-creme">
+        <DrawerHeader class="app-pad text-left">
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Contributions</DrawerTitle>
+        </DrawerHeader>
+        <div class="app-pad flex flex-col gap-2 pb-8">
+          <p v-if="!contributions.length" class="py-6 text-center text-body-sm text-secondaire">
+            Aucune contribution partagée pour le moment.
+          </p>
+          <ul v-else class="flex flex-col gap-2">
+            <li
+              v-for="contribution in contributions"
+              :key="contribution.id"
+              class="flex items-center gap-3 rounded-xl bg-surface p-2"
+            >
+              <DishPhoto :dish-name="contribution.label" :size="40" rounded="rounded-full" />
+              <span class="flex min-w-0 flex-1 flex-col">
+                <span class="truncate text-body-md text-ardoise">
+                  <span class="font-bold">{{ contribution.label }}</span>
+                  <template v-if="contribution.participant"> · {{ contribution.participant.firstName }}</template>
+                </span>
+                <span v-if="formatQuantity(contribution.quantity, contribution.unit)" class="text-micro text-secondaire">
+                  {{ formatQuantity(contribution.quantity, contribution.unit) }}
+                </span>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </DrawerContent>
+    </Drawer>
   </div>
 
   <!-- Liste des conversations -->
