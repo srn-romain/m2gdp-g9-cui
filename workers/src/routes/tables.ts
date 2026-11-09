@@ -60,7 +60,7 @@ tablesRoutes.get('/', async (c) => {
   const startsAfter = url.searchParams.get('startsAfter');
   const startsBefore = url.searchParams.get('startsBefore');
   const { page, pageSize } = parsePagination(url);
-  const rows = await c.env.DB.prepare('SELECT * FROM tables WHERE status IN (\'OPEN\',\'FULL\') LIMIT 500').all<TableRow>();
+  const rows = await c.env.DB.prepare('SELECT * FROM tables WHERE status IN (\'OPEN\',\'FULL\') LIMIT 2000').all<TableRow>();
   const candidates: TableRow[] = [];
   for (const t of rows.results ?? []) {
     if (isPassed(t.startsAt, t.durationMinutes)) continue;
