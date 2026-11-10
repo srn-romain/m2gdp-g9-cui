@@ -3,6 +3,7 @@ import type { Env } from '../env';
 import { apiError } from '../errors';
 import { parsePagination, pageOf } from '../pagination';
 import { requireAuth } from '../auth';
+import { queryIn } from '../db';
 import { effectiveDietaryTags, isPassed, nowIso, parseWantedContributions, round300m, type TableRow } from '../models';
 
 const DIETS = ['VEGETARIAN','VEGAN','NO_PORK','NO_GLUTEN','NO_LACTOSE','HALAL','KOSHER','NO_NUTS'];
@@ -91,27 +92,37 @@ meRoutes.get('/tables', async (c) => {
   type ContribRow = { id: string; participationId: string; label: string; quantity: string | null; unit: string | null; category: string; status: string; tableId: string; userId: string; firstName: string; avatarUrl: string | null; neighborhood: string; city: string };
 
   const ids = candidates.map((t) => t.id);
-  const inList = (arr: string[]) => arr.map(() => '?').join(',');
   const guestCounts = new Map<string, number>();
   const viewerParts = new Map<string, ViewerPart>();
   const hostRows = new Map<string, HostRow>();
   const contribs = new Map<string, ContribRow[]>();
 
   if (ids.length) {
-    const ph = inList(ids);
-    const g = await c.env.DB.prepare(`SELECT tableId, COUNT(*) AS n FROM participations WHERE tableId IN (${ph}) AND role = 'GUEST' AND status = 'CONFIRMED' GROUP BY tableId`).bind(...ids).all<GuestCount>();
-    for (const r of g.results ?? []) guestCounts.set(r.tableId, r.n);
+    const guests = await queryIn<GuestCount>(c.env.DB,
+      (ph) => `SELECT tableId, COUNT(*) AS n FROM participations WHERE tableId IN (${ph}) AND role = 'GUEST' AND status = 'CONFIRMED' GROUP BY tableId`,
+      ids,
+    );
+    for (const r of guests) guestCounts.set(r.tableId, r.n);
 
-    const v = await c.env.DB.prepare(`SELECT id, tableId, role, status, joinedAt FROM participations WHERE tableId IN (${ph}) AND userId = ? AND status = 'CONFIRMED'`).bind(...ids, auth.userId).all<ViewerPart>();
-    for (const r of v.results ?? []) viewerParts.set(r.tableId, r);
+    const views = await queryIn<ViewerPart>(c.env.DB,
+      (ph) => `SELECT id, tableId, role, status, joinedAt FROM participations WHERE tableId IN (${ph}) AND userId = ? AND status = 'CONFIRMED'`,
+      ids,
+      [auth.userId],
+    );
+    for (const r of views) viewerParts.set(r.tableId, r);
 
     const hostIds = [...new Set(candidates.map((t) => t.hostId))];
-    const hp = inList(hostIds);
-    const h = await c.env.DB.prepare(`SELECT id, firstName, avatarUrl, neighborhood, city FROM users WHERE id IN (${hp})`).bind(...hostIds).all<HostRow>();
-    for (const r of h.results ?? []) hostRows.set(r.id, r);
+    const hosts = await queryIn<HostRow>(c.env.DB,
+      (ph) => `SELECT id, firstName, avatarUrl, neighborhood, city FROM users WHERE id IN (${ph})`,
+      hostIds,
+    );
+    for (const r of hosts) hostRows.set(r.id, r);
 
-    const co = await c.env.DB.prepare(`SELECT c.id, c.participationId, c.label, c.quantity, c.unit, c.category, c.status, p.tableId, p.userId, u.firstName, u.avatarUrl, u.neighborhood, u.city FROM contributions c JOIN participations p ON p.id = c.participationId JOIN users u ON u.id = p.userId WHERE p.tableId IN (${ph}) AND p.status = 'CONFIRMED' ORDER BY p.joinedAt ASC`).bind(...ids).all<ContribRow>();
-    for (const r of co.results ?? []) {
+    const contribsRows = await queryIn<ContribRow>(c.env.DB,
+      (ph) => `SELECT c.id, c.participationId, c.label, c.quantity, c.unit, c.category, c.status, p.tableId, p.userId, u.firstName, u.avatarUrl, u.neighborhood, u.city FROM contributions c JOIN participations p ON p.id = c.participationId JOIN users u ON u.id = p.userId WHERE p.tableId IN (${ph}) AND p.status = 'CONFIRMED' ORDER BY p.joinedAt ASC`,
+      ids,
+    );
+    for (const r of contribsRows) {
       const arr = contribs.get(r.tableId) ?? [];
       arr.push(r);
       contribs.set(r.tableId, arr);
