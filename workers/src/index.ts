@@ -39,7 +39,8 @@ app.route('/api/v1', v1);
 app.notFound((c) => apiError('NOT_FOUND', 'Route introuvable.'));
 app.onError((e, c) => {
   console.error(e);
-  return apiError('INTERNAL_ERROR', 'Erreur interne.');
+  const cause = e instanceof Error ? e.message : String(e);
+  return apiError('INTERNAL_ERROR', 'Erreur interne.', { cause });
 });
 
 export default app;

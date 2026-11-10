@@ -99,11 +99,14 @@ export async function apiFetch<T = unknown>(path: string, options: FetchOptions 
 
   const body = await res.json().catch(() => null);
   if (!res.ok) {
+    const details = body?.error?.details;
+    const cause = typeof details?.cause === 'string' ? details.cause : '';
+    const message = body?.error?.message ?? 'Une erreur est survenue.';
     throw new ApiError(
-      body?.error?.message ?? 'Une erreur est survenue.',
+      cause ? `${message} (${cause})` : message,
       body?.error?.code ?? 'INTERNAL_ERROR',
       res.status,
-      body?.error?.details,
+      details,
     );
   }
   return body as T;
