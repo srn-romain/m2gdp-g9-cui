@@ -15,6 +15,7 @@ function userJson(r: Record<string, unknown>) {
     coordinates: r['lat'] == null ? null : { latitude: r['lat'], longitude: r['lng'] },
     dietaryPreferences: JSON.parse((r['dietaryPreferences'] as string) || '[]'),
     avatarUrl: r['avatarUrl'] ?? null, status: r['status'],
+    about: r['about'] ?? null,
     createdAt: r['createdAt'], updatedAt: r['updatedAt'],
   };
 }
@@ -46,6 +47,11 @@ meRoutes.patch('/', async (c) => {
     if (b['avatarUrl'] !== undefined) {
       if (b['avatarUrl'] !== null && typeof b['avatarUrl'] !== 'string') throw new Error('avatarUrl');
       sets.push('avatarUrl = ?'); vals.push(b['avatarUrl']);
+    }
+    if (b['about'] !== undefined) {
+      if (b['about'] !== null && typeof b['about'] !== 'string') throw new Error('about');
+      if ((b['about'] as string).length > 500) throw new Error('about');
+      sets.push('about = ?'); vals.push(b['about']);
     }
     if (b['coordinates'] !== undefined && b['coordinates'] !== null) {
       const co = b['coordinates'] as { latitude?: unknown; longitude?: unknown };
@@ -157,6 +163,7 @@ meRoutes.get('/tables', async (c) => {
     const dietaryTags = [...effectiveDietaryTags(t)];
     return {
       id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
+      ambiance: t.ambiance ?? null,
       dishImageUrl: t.dishImageUrl ?? null,
       title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
       startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,

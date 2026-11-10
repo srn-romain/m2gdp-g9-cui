@@ -25,6 +25,7 @@ const { chercherUne } = useAddressSearch();
 
 const dishName = ref('');
 const description = ref('');
+const ambiance = ref('');
 /** Créneau par défaut : aujourd'hui 12 h 30, ou demain s'il est déjà passé. */
 function creneauParDefaut() {
   const quand = new Date();
@@ -191,6 +192,7 @@ async function submit() {
     const table = await createTable({
       dishName: dishName.value.trim(),
       description: description.value.trim() || undefined,
+      ambiance: ambiance.value.trim() || undefined,
       startsAt: startsAt.value,
       seatsTotal: seatsTotal.value,
       dietaryTags: dietaryTags.value.length ? dietaryTags.value : undefined,
@@ -307,6 +309,17 @@ onMounted(async () => {
             <Sparkles data-icon="inline-start" class="text-terracotta" />
             {{ aiLoading ? 'Génération…' : 'Enrichir avec l’IA' }}
           </Button>
+        </Field>
+
+        <Field v-if="step === 1">
+          <FieldLabel for="table-ambiance">Ambiance</FieldLabel>
+          <Textarea
+            id="table-ambiance"
+            v-model="ambiance"
+            rows="2"
+            placeholder="Ambiance chaleureuse attendue chez l'hôte"
+            class="rounded-2xl border-ardoise/10 bg-surface text-body-md"
+          />
         </Field>
 
         <!-- Liste de courses : l'hôte propose, les invités choisissent. -->

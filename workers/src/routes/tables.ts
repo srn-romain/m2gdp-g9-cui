@@ -160,6 +160,7 @@ tablesRoutes.get('/', async (c) => {
     const dietaryTags = [...effectiveDietaryTags(t)];
     items.push({
       id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
+      ambiance: t.ambiance ?? null,
       dishImageUrl: t.dishImageUrl ?? null,
       title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
       startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,
@@ -223,9 +224,9 @@ tablesRoutes.post('/', async (c) => {
   // R1 : tablee + participation HOST CONFIRMED dans la meme transaction.
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO tables (id, hostId, dishName, description, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, dietaryTags, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(id, auth.userId, (dish as string).trim(), (b['description'] as string) ?? null, new Date(String(b['startsAt'])).toISOString(),
+      `INSERT INTO tables (id, hostId, dishName, description, ambiance, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, dietaryTags, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(id, auth.userId, (dish as string).trim(), (b['description'] as string) ?? null, (b['ambiance'] as string) ?? null, new Date(String(b['startsAt'])).toISOString(),
       Number(b['durationMinutes'] ?? 120), seats, vis, isVegetarian, b['hasAllergenNotice'] ? 1 : 0, JSON.stringify(dietaryTags),
       loc['neighborhood'], loc['city'], (loc['postalCode'] as string) ?? null,
       co.latitude, co.longitude, (loc['addressLine'] as string) ?? null, JSON.stringify(wanted), now),

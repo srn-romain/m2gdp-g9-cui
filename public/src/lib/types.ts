@@ -66,6 +66,7 @@ export interface UserSummary {
   avatarUrl?: string | null;
   neighborhood: string;
   city: string;
+  about?: string | null;
   rating?: Rating;
 }
 
@@ -79,6 +80,7 @@ export interface User {
   coordinates?: Coordinates | null;
   dietaryPreferences: DietaryPreference[];
   avatarUrl?: string | null;
+  about?: string | null;
   rating?: Rating;
   status: AccountStatus;
   createdAt: string;
@@ -88,6 +90,7 @@ export interface User {
 export interface UserUpdate {
   firstName?: string;
   lastName?: string;
+  about?: string | null;
   neighborhood?: string;
   city?: string;
   coordinates?: Coordinates;
@@ -140,6 +143,7 @@ export interface Table {
   dishName: string;
   dishImageUrl?: string | null;
   description?: string | null;
+  ambiance?: string | null;
   startsAt: string;
   durationMinutes: number;
   seatsTotal: number;
@@ -162,6 +166,7 @@ export interface Table {
 export interface TableCreate {
   dishName: string;
   description?: string;
+  ambiance?: string;
   startsAt: string;
   durationMinutes?: number;
   seatsTotal: number;

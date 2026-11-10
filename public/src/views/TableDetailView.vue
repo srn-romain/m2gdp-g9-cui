@@ -39,6 +39,14 @@ const title = computed(() => (table.value ? tableTitle(table.value) : ''));
 const contributions = computed(() => table.value?.contributions ?? []);
 const wanted = computed(() => table.value?.wantedContributions ?? []);
 const isHost = computed(() => table.value?.myParticipation?.role === 'HOST');
+/** Associe chaque ingrédient à la personne qui s'est engagée à l'apporter. */
+const apporteur = computed(() => {
+  const map = new Map<string, string>();
+  for (const c of contributions.value) {
+    if (c.participant) map.set(c.label.trim().toLowerCase(), c.participant.firstName);
+  }
+  return map;
+});
 const joined = computed(() => Boolean(table.value?.myParticipation));
 const isPast = computed(() => table.value?.status === 'PASSED');
 const canJoin = computed(
@@ -167,6 +175,9 @@ onMounted(async () => {
             · {{ table.host.rating.average.toFixed(1).replace('.', ',') }} ({{ table.host.rating.count }} avis)
           </span>
         </div>
+        <p v-if="table.host?.about" class="text-body-sm whitespace-pre-line text-secondaire">
+          {{ table.host.about }}
+        </p>
 
         <div class="flex flex-wrap items-center gap-1.5">
           <Badge v-if="table.isVegetarian" variant="outline" class="text-label-sm text-secondaire">
@@ -201,7 +212,10 @@ onMounted(async () => {
           </div>
         </dl>
 
-        <p v-if="table.description" class="text-body-lg text-ardoise">{{ table.description }}</p>
+        <p v-if="table.description" class="text-body-lg whitespace-pre-line text-ardoise">{{ table.description }}</p>
+        <p v-if="table.ambiance" class="whitespace-pre-line rounded-xl bg-sauge/10 px-3 py-2 text-body-md text-sauge-fonce">
+          {{ table.ambiance }}
+        </p>
 
         <Separator />
 
@@ -227,6 +241,13 @@ onMounted(async () => {
                 >
                   {{ formatIngredientQuantity(ingredient.quantity, ingredient.unit) }}
                 </span>
+                <span
+                  v-if="apporteur.get(ingredient.label.trim().toLowerCase())"
+                  class="text-micro font-medium text-sauge-fonce"
+                >
+                  Apporté par {{ apporteur.get(ingredient.label.trim().toLowerCase()) }}
+                </span>
+                <span v-else class="text-micro text-secondaire">À pourvoir</span>
               </span>
             </li>
           </ul>

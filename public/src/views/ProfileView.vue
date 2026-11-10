@@ -15,6 +15,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
 import { listMyTables, mediaUrl, presignMedia, uploadMedia } from '@/lib/api';
 import { DIETARY_OPTIONS, formatDietary, initials } from '@/lib/format';
@@ -43,6 +44,7 @@ const uploadingAvatar = ref(false);
 const identityOpen = ref(false);
 const prenom = ref('');
 const nom = ref('');
+const aPropos = ref('');
 const savingIdentity = ref(false);
 
 const profile = computed(() => meStore.profile);
@@ -145,6 +147,7 @@ async function savePreferences() {
 function ouvrirIdentite() {
   prenom.value = profile.value?.firstName ?? '';
   nom.value = profile.value?.lastName ?? '';
+  aPropos.value = profile.value?.about ?? '';
   identityOpen.value = true;
 }
 
@@ -157,7 +160,7 @@ async function saveIdentity() {
   }
   savingIdentity.value = true;
   try {
-    await meStore.save({ firstName: first, lastName: last });
+    await meStore.save({ firstName: first, lastName: last, about: aPropos.value.trim() || null });
     toast.success('Informations enregistrées.');
     identityOpen.value = false;
   } catch (e) {
@@ -416,6 +419,16 @@ onMounted(async () => {
                   class="text-body-md"
                 />
               </InputGroup>
+            </Field>
+            <Field>
+              <FieldLabel for="profile-about">À propos de toi</FieldLabel>
+              <Textarea
+                id="profile-about"
+                v-model="aPropos"
+                rows="3"
+                placeholder="Quelques mots pour te présenter à tes voisins."
+                class="rounded-xl border-ardoise/12 bg-creme text-body-md"
+              />
             </Field>
           </FieldGroup>
         </div>

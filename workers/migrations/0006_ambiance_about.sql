@@ -1,0 +1,2 @@
+ALTER TABLE tables ADD COLUMN ambiance TEXT;
+ALTER TABLE users ADD COLUMN about TEXT;

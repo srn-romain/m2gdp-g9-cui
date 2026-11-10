@@ -24,6 +24,7 @@ export function round300m(v: number): number {
 
 export interface TableRow {
   id: string; hostId: string; dishName: string; description: string | null;
+  ambiance: string | null;
   startsAt: string; durationMinutes: number; seatsTotal: number;
   visibility: string; status: string; isVegetarian: number; hasAllergenNotice: number;
   dietaryTags: string | null;
@@ -71,7 +72,7 @@ export function effectiveDietaryTags(row: TableRow): Set<string> {
 
 interface UserRow {
   id: string; firstName: string; avatarUrl: string | null;
-  neighborhood: string; city: string;
+  neighborhood: string; city: string; about: string | null;
 }
 
 interface ContributionRow {
@@ -83,12 +84,13 @@ interface ContributionRow {
 
 export async function userSummary(db: D1Database, userId: string) {
   const u = await db.prepare(
-    'SELECT id, firstName, avatarUrl, neighborhood, city FROM users WHERE id = ?',
+    'SELECT id, firstName, avatarUrl, neighborhood, city, about FROM users WHERE id = ?',
   ).bind(userId).first<UserRow>();
   if (!u) return null;
   return {
     id: u.id, firstName: u.firstName, avatarUrl: u.avatarUrl ?? null,
     neighborhood: u.neighborhood, city: u.city,
+    about: u.about ?? null,
   };
 }
 
@@ -177,6 +179,7 @@ export async function toTableJson(db: D1Database, row: TableRow, viewerUserId: s
   const dietaryTags = [...effectiveDietaryTags(row)];
   return {
     id: row.id, hostId: row.hostId, dishName: row.dishName, description: row.description,
+    ambiance: row.ambiance ?? null,
     dishImageUrl: row.dishImageUrl ?? null,
     // Titre dérivé : « {dishName} chez {host.firstName} », jamais stocké.
     // Un hôte qui n'a pas encore complété son profil n'a pas de prénom : le titre
