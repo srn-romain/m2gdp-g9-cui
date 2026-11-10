@@ -189,7 +189,7 @@ aiRoutes.post('/table-draft', async (c) => {
     {
       role: 'system',
       content:
-        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (nombre entier entre 2 et 12), durationMinutes (nombre entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
+        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée pour 4 personnes par défaut. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier, 4 par défaut), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes pour 4 personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
     },
     { role: 'user', content: description },
   ];
