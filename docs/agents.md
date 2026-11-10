@@ -61,6 +61,8 @@ Les deployments statiques passent par Cloudflare Pages, pas par Firebase Hosting
 - Ordre : D1 migrations -> routes Worker -> front -> parcours.http 1-15 -> smoke 401/403/404/409/422.
 - Tests : Vitest dans /public/src et workers, Playwright dans /tests.
 - Avant chaque commit : type-check + build front, type-check worker.
+- **Local d'abord** : toute modification doit etre validee en local (tests + build)
+  avant de deployer en prod. Ne jamais deployer en prod sans validation locale.
 - Hors perimetre (ticket post-prod, ne pas implementer) : avis, recettes, favoris,
   notifications, meteo, envoi medias, gestion hote PATCH, moderation.
 - En cas de conflit POC vs scenNominal : le POC gagne sur l'infra,
