@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { apiError } from '../errors';
 import { requireAuth } from '../auth';
-import { guestConfirmedCount, isPassed, newId, nowIso } from '../models';
+import { guestConfirmedCount, isPassed, newId, nowIso, toTableJson, type TableRow } from '../models';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CATS = ['APPETIZER','MAIN','DESSERT','DRINK','INGREDIENT','NONE'];
@@ -73,4 +73,43 @@ participationsRoutes.delete('/tables/:tableId/participations/me', async (c) => {
     c.env.DB.prepare('DELETE FROM contributions WHERE participationId = ?').bind(p.id),
   ]);
   return c.body(null, 204);
+});
+
+participationsRoutes.put('/tables/:tableId/contributions/me', async (c) => {
+  const auth = await requireAuth(c);
+  if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
+  const tableId = c.req.param('tableId');
+  const p = await c.env.DB.prepare(
+    "SELECT id FROM participations WHERE tableId = ? AND userId = ? AND status = 'CONFIRMED'",
+  ).bind(tableId, auth.userId).first<{ id: string }>();
+  if (!p) return apiError('FORBIDDEN', 'Seuls les participants confirmes apportent quelque chose.');
+  const b = await c.req.json().catch(() => null) as
+    { label?: unknown; quantity?: unknown; unit?: unknown; category?: unknown } | null;
+  if (!b || b['label'] == null || String(b['label']).trim() === '') {
+    await c.env.DB.prepare('DELETE FROM contributions WHERE participationId = ?').bind(p.id).run();
+    return c.body(null, 204);
+  }
+  const label = String(b['label']).trim();
+  const category = String(b['category'] ?? 'INGREDIENT');
+  if (!CATS.includes(category)) return apiError('VALIDATION_ERROR', 'Categorie invalide.', { field: 'category' });
+  if (b['unit'] != null && !UNITS.includes(String(b['unit']))) {
+    return apiError('VALIDATION_ERROR', 'Unite invalide.', { field: 'unit' });
+  }
+  const quantity = b['quantity'] == null ? null : Number(b['quantity']);
+  if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) {
+    return apiError('VALIDATION_ERROR', 'quantity invalide.', { field: 'quantity' });
+  }
+  const q = quantity == null ? null : String(quantity);
+  const existing = await c.env.DB.prepare('SELECT id FROM contributions WHERE participationId = ?')
+    .bind(p.id).first<{ id: string }>();
+  if (existing) {
+    await c.env.DB.prepare('UPDATE contributions SET label = ?, quantity = ?, unit = ?, category = ? WHERE id = ?')
+      .bind(label, q, (b['unit'] as string) ?? null, category, existing.id).run();
+  } else {
+    await c.env.DB.prepare(
+      'INSERT INTO contributions (id, participationId, label, quantity, unit, category, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).bind(newId(), p.id, label, q, (b['unit'] as string) ?? null, category, 'PROPOSED').run();
+  }
+  const row = await c.env.DB.prepare('SELECT * FROM tables WHERE id = ?').bind(tableId).first<TableRow>();
+  return c.json(await toTableJson(c.env.DB, row as TableRow, auth.userId));
 });

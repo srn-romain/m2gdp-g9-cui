@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Camera,
+  ChevronRight,
   MoreVertical,
   Users,
 } from '@lucide/vue';
@@ -147,6 +148,9 @@ const sousTitre = computed(() => {
   return `${monde} participant${monde > 1 ? 's' : ''} · ${quand.charAt(0).toLowerCase()}${quand.slice(1)}`;
 });
 const contributions = computed(() => table.value?.contributions ?? []);
+const rappelApports = computed(() =>
+  (table.value?.wantedContributions ?? []).slice(0, 3).map((w) => w.label),
+);
 
 const estMoi = (message: Message) => Boolean(monId.value) && message.author?.id === monId.value;
 
@@ -302,6 +306,22 @@ watch(tableId, (id) => {
         </div>
       </div>
     </header>
+
+    <RouterLink
+      v-if="table"
+      :to="`/tables/${tableId}`"
+      class="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-sauge/10 px-3 py-2 text-micro text-sauge-fonce"
+    >
+      <span class="shrink-0">📍</span>
+      <span class="min-w-0 flex-1">
+        <span class="font-semibold">{{ formatDayTime(table.startsAt) }} · {{ table.location.neighborhood }}</span>
+        <template v-if="rappelApports.length">
+          <br />
+          À apporter : {{ rappelApports.join(' · ') }}
+        </template>
+      </span>
+      <ChevronRight class="size-3.5 shrink-0" :stroke-width="2.25" />
+    </RouterLink>
 
     <div ref="scroller" class="flex-1 overflow-y-auto px-4 pb-4">
       <Skeleton v-if="threadLoading" class="h-40 w-full rounded-2xl" />

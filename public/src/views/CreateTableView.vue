@@ -153,6 +153,7 @@ async function enrichirAvecIa() {
     const draft = await draftTableWithAi(texte);
     if (draft.dishName) dishName.value = draft.dishName;
     if (draft.description) description.value = draft.description;
+    if (draft.ambiance) ambiance.value = draft.ambiance;
     if (draft.seatsTotal) seatsTotal.value = Math.min(30, Math.max(1, draft.seatsTotal));
     if (Array.isArray(draft.wantedContributions)) {
       const unitesValides = new Set<string>(['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION']);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, Check, MapPin, Share2, TriangleAlert, Users } from '@lucide/vue';
+import { CalendarClock, Check, MapPin, Plus, Share2, Trash2, TriangleAlert, Users } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -23,8 +23,8 @@ import {
   formatTime,
   tableTitle,
 } from '@/lib/format';
-import { getTable, joinTable } from '@/lib/api';
-import type { ContributionCategory, QuantityUnit, Table } from '@/lib/types';
+import { getTable, joinTable, updateMyContribution, updateWantedContributions } from '@/lib/api';
+import type { ContributionCategory, QuantityUnit, Table, WantedContribution } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
 
 const route = useRoute();
@@ -47,6 +47,56 @@ const apporteur = computed(() => {
   }
   return map;
 });
+
+const editWantedOpen = ref(false);
+const draftWanted = ref<WantedContribution[]>([]);
+const nouvelIngredient = ref('');
+const savingWanted = ref(false);
+const savingApport = ref(false);
+
+function ouvrirEditionWanted() {
+  draftWanted.value = wanted.value.map((w) => ({ ...w }));
+  nouvelIngredient.value = '';
+  editWantedOpen.value = true;
+}
+
+function ajouterIngredient() {
+  const label = nouvelIngredient.value.trim();
+  if (!label) return;
+  draftWanted.value.push({ label, quantity: 1, unit: 'UNIT' });
+  nouvelIngredient.value = '';
+}
+
+function retirerIngredient(index: number) {
+  draftWanted.value.splice(index, 1);
+}
+
+async function enregistrerWanted() {
+  if (!table.value) return;
+  savingWanted.value = true;
+  try {
+    table.value = await updateWantedContributions(table.value.id, draftWanted.value);
+    editWantedOpen.value = false;
+    toast.success('Liste de courses mise à jour.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Mise à jour impossible.');
+  } finally {
+    savingWanted.value = false;
+  }
+}
+
+async function retirerMonApport() {
+  if (!table.value) return;
+  savingApport.value = true;
+  try {
+    table.value = await updateMyContribution(table.value.id, null);
+    toast.success('Apport retiré.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Impossible de retirer l’apport.');
+  } finally {
+    savingApport.value = false;
+  }
+}
 const joined = computed(() => Boolean(table.value?.myParticipation));
 const isPast = computed(() => table.value?.status === 'PASSED');
 const canJoin = computed(
@@ -220,11 +270,16 @@ onMounted(async () => {
         <Separator />
 
         <section v-if="wanted.length" class="flex flex-col gap-3">
-          <div class="flex flex-col gap-1">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex flex-col gap-1">
             <h2 class="text-body-lg-strong text-ardoise">Ce que les invités apportent</h2>
             <p class="text-body-sm text-secondaire">
               {{ isHost ? 'Tu proposes ces ingrédients : tes voisins choisiront le leur.' : "Choisis ton ingrédient en rejoignant la tablée." }}
             </p>
+            </div>
+            <Button v-if="isHost" type="button" variant="ghost" size="sm" @click="ouvrirEditionWanted">
+              Modifier
+            </Button>
           </div>
           <ul class="flex flex-col gap-2">
             <li
@@ -275,6 +330,16 @@ onMounted(async () => {
           <p v-else class="text-body-sm text-secondaire">
             Personne n'a encore annoncé son apport.
           </p>
+          <Button
+            v-if="table.myParticipation?.contribution"
+            type="button"
+            variant="ghost"
+            size="sm"
+            :disabled="savingApport"
+            @click="retirerMonApport"
+          >
+            {{ savingApport ? 'Retrait…' : 'Retirer mon apport' }}
+          </Button>
         </section>
       </div>
 
@@ -343,5 +408,47 @@ onMounted(async () => {
         </DrawerContent>
       </Drawer>
     </template>
+
+    <Drawer v-model:open="editWantedOpen">
+      <DrawerContent class="bg-creme">
+        <DrawerHeader class="app-pad text-left">
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Modifier les ingrédients</DrawerTitle>
+        </DrawerHeader>
+        <div class="app-pad flex flex-col gap-3 pb-8">
+          <ul class="flex flex-col gap-2">
+            <li
+              v-for="(item, i) in draftWanted"
+              :key="`${item.label}-${i}`"
+              class="flex items-center gap-2 rounded-xl border border-ardoise/10 px-3 py-2"
+            >
+              <span class="flex-1 text-body-md text-ardoise">{{ item.label }}</span>
+              <button
+                type="button"
+                class="grid size-8 place-items-center rounded-full text-terracotta"
+                aria-label="Retirer l’ingrédient"
+                @click="retirerIngredient(i)"
+              >
+                <Trash2 class="size-4" />
+              </button>
+            </li>
+          </ul>
+          <div class="flex gap-2">
+            <input
+              v-model="nouvelIngredient"
+              type="text"
+              placeholder="Ajouter un ingrédient…"
+              class="h-12 flex-1 rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
+              @keydown.enter.prevent="ajouterIngredient"
+            />
+            <Button type="button" variant="secondary" size="default" @click="ajouterIngredient">
+              <Plus class="size-4" />
+            </Button>
+          </div>
+          <Button size="lg" class="w-full" :disabled="savingWanted" @click="enregistrerWanted">
+            {{ savingWanted ? 'Enregistrement…' : 'Enregistrer' }}
+          </Button>
+        </div>
+      </DrawerContent>
+    </Drawer>
   </div>
 </template>

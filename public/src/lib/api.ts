@@ -1,6 +1,7 @@
 // Client /api/v1 : Bearer accessToken, enveloppes {data,pagination} / {error:{code,message,details}}.
 import type {
   ApiErrorCode,
+  ContributionInput,
   Message,
   MessageCreate,
   Page,
@@ -12,6 +13,7 @@ import type {
   TableSort,
   User,
   UserUpdate,
+  WantedContribution,
 } from './types';
 import {
   DEMO_ALL,
@@ -172,6 +174,7 @@ export function suggestTables(query: string): Promise<TableSuggestions> {
 export interface TableDraft {
   dishName: string;
   description: string;
+  ambiance?: string | null;
   wantedContributions: Array<{ label: string; quantity?: number | null; unit?: string | null }>;
   seatsTotal: number;
   durationMinutes: number;
@@ -205,6 +208,12 @@ export const createTable = (body: TableCreate) =>
         wantedContributions: body.wantedContributions ?? [],
       })
     : apiPost<Table>(`${BASE}/tables`, body);
+
+export const updateWantedContributions = (tableId: string, wanted: WantedContribution[]) =>
+  apiPatch<Table>(`${BASE}/tables/${tableId}/wanted-contributions`, { wantedContributions: wanted });
+
+export const updateMyContribution = (tableId: string, contribution: ContributionInput | null) =>
+  apiPatch<Table>(`${BASE}/tables/${tableId}/contributions/me`, contribution ?? { label: null });
 
 /** Rejouable sans risque : l'Idempotency-Key est fournie par l'appelant. */
 export const joinTable = (tableId: string, body: ParticipationCreate, idempotencyKey: string) =>

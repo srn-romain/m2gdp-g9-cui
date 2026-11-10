@@ -271,3 +271,18 @@ tablesRoutes.get('/:tableId', async (c) => {
   if (!row) return apiError('NOT_FOUND', 'Tablee introuvable.');
   return c.json(await toTableJson(c.env.DB, row, auth.userId));
 });
+
+tablesRoutes.patch('/:tableId/wanted-contributions', async (c) => {
+  const auth = await requireAuth(c);
+  if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
+  const tableId = c.req.param('tableId');
+  const t = await c.env.DB.prepare('SELECT hostId FROM tables WHERE id = ?').bind(tableId).first<{ hostId: string }>();
+  if (!t) return apiError('NOT_FOUND', 'Tablee introuvable.');
+  if (t.hostId !== auth.userId) return apiError('FORBIDDEN', "Seul l'hote modifie la liste de courses.");
+  const b = await c.req.json().catch(() => null) as { wantedContributions?: unknown } | null;
+  const wanted = parseWanted(b?.wantedContributions);
+  if (!wanted) return apiError('VALIDATION_ERROR', 'wantedContributions invalide.', { field: 'wantedContributions' });
+  await c.env.DB.prepare('UPDATE tables SET wantedContributions = ? WHERE id = ?').bind(JSON.stringify(wanted), tableId).run();
+  const row = await c.env.DB.prepare('SELECT * FROM tables WHERE id = ?').bind(tableId).first<TableRow>();
+  return c.json(await toTableJson(c.env.DB, row as TableRow, auth.userId));
+});

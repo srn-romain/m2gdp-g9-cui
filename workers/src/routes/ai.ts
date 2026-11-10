@@ -189,7 +189,7 @@ aiRoutes.post('/table-draft', async (c) => {
     {
       role: 'system',
       content:
-        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée pour 4 personnes par défaut. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier, 4 par défaut), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes pour 4 personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
+        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée pour 4 personnes par défaut. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), ambiance (string courte décrivant l\'ambiance du repas, avec possibilité de sauts de ligne), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier, 4 par défaut), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes pour 4 personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
     },
     { role: 'user', content: description },
   ];
@@ -200,6 +200,7 @@ aiRoutes.post('/table-draft', async (c) => {
       data: {
         dishName: description.slice(0, 60),
         description,
+        ambiance: null,
         wantedContributions: await suggestionsMealDb(description),
         seatsTotal: 4,
         durationMinutes: 120,
@@ -214,6 +215,7 @@ aiRoutes.post('/table-draft', async (c) => {
     data: {
       dishName: nom,
       description: typeof parsed?.description === 'string' ? parsed.description : description,
+      ambiance: typeof parsed?.ambiance === 'string' ? parsed.ambiance : null,
       wantedContributions: wantedIA ?? await suggestionsMealDb(`${nom} ${description}`),
       seatsTotal: Number.isFinite(Number(parsed?.seatsTotal)) ? Number(parsed?.seatsTotal) : 4,
       durationMinutes: Number.isFinite(Number(parsed?.durationMinutes)) ? Number(parsed?.durationMinutes) : 120,
