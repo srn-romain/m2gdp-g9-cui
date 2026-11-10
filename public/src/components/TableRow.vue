@@ -10,11 +10,15 @@ import type { Table } from '@/lib/types';
  * Ligne de l'écran Explorer : photo, pastille de régime, titre, méta sur une ligne.
  * La pastille de régime est posée en tête de la colonne de texte, comme la maquette.
  */
-const props = defineProps<{ table: Table }>();
+const props = withDefaults(
+  defineProps<{ table: Table; showDistance?: boolean; showIngredients?: boolean }>(),
+  { showDistance: true, showIngredients: false },
+);
 
 const title = computed(() => tableTitle(props.table));
 const distance = computed(() => formatDistance(props.table.distanceMeters));
 const jour = computed(() => formatDay(props.table.startsAt));
+const wanted = computed(() => props.table.wantedContributions ?? []);
 </script>
 
 <template>
@@ -38,7 +42,7 @@ const jour = computed(() => formatDay(props.table.startsAt));
           <CalendarDays class="size-3.5 shrink-0 text-sauge" :stroke-width="2" />
           {{ jour }}
         </span>
-        <template v-if="distance">
+        <template v-if="showDistance && distance">
           <span class="text-ardoise/35" aria-hidden="true">·</span>
           <span class="flex items-center gap-1">
             <MapPin class="size-3.5 shrink-0 text-sauge" :stroke-width="2" />
@@ -50,6 +54,10 @@ const jour = computed(() => formatDay(props.table.startsAt));
           <Users class="size-3.5 shrink-0 text-sauge" :stroke-width="2" />
           {{ formatSeatsCourt(table.seatsAvailable) }}
         </span>
+      </p>
+
+      <p v-if="showIngredients && wanted.length" class="truncate text-micro text-secondaire">
+        À apporter : {{ wanted.slice(0, 3).map((w) => w.label).join(', ') }}
       </p>
     </div>
   </article>

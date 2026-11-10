@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   ArrowUp,
   Camera,
-  ChevronRight,
   MoreVertical,
   Users,
 } from '@lucide/vue';
@@ -16,6 +15,7 @@ import AppBar from '@/components/AppBar.vue';
 import DishPhoto from '@/components/DishPhoto.vue';
 import IngredientGlyph from '@/components/IngredientGlyph.vue';
 import MascotBubble from '@/components/MascotBubble.vue';
+import TableRow from '@/components/TableRow.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
@@ -148,9 +148,6 @@ const sousTitre = computed(() => {
   return `${monde} participant${monde > 1 ? 's' : ''} · ${quand.charAt(0).toLowerCase()}${quand.slice(1)}`;
 });
 const contributions = computed(() => table.value?.contributions ?? []);
-const rappelApports = computed(() =>
-  (table.value?.wantedContributions ?? []).slice(0, 3).map((w) => w.label),
-);
 
 const estMoi = (message: Message) => Boolean(monId.value) && message.author?.id === monId.value;
 
@@ -310,17 +307,9 @@ watch(tableId, (id) => {
     <RouterLink
       v-if="table"
       :to="`/tables/${tableId}`"
-      class="mx-4 mb-2 flex items-center gap-2 rounded-2xl border border-ardoise/10 bg-surface px-3 py-2 text-body-sm text-ardoise"
+      class="mx-4 mb-2 block"
     >
-      <span class="min-w-0 flex-1">
-        <span class="font-semibold text-sauge-fonce">
-          {{ formatDayTime(table.startsAt) }} · {{ table.location.neighborhood }}
-        </span>
-        <template v-if="rappelApports.length">
-          · À apporter : {{ rappelApports.join(', ') }}
-        </template>
-      </span>
-      <ChevronRight class="size-4 shrink-0 text-secondaire" :stroke-width="2.25" />
+      <TableRow :table="table" :show-distance="false" :show-ingredients="true" />
     </RouterLink>
 
     <div ref="scroller" class="flex-1 overflow-y-auto px-4 pb-4">
