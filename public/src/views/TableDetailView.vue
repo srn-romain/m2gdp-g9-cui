@@ -22,7 +22,7 @@ import {
   formatTime,
   tableTitle,
 } from '@/lib/format';
-import { getTable, joinTable, updateMyContribution, updateWantedContributions } from '@/lib/api';
+import { getTable, joinTable, leaveTable, updateMyContribution, updateWantedContributions } from '@/lib/api';
 import type { ContributionCategory, QuantityUnit, Table, WantedContribution } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
 
@@ -104,6 +104,22 @@ async function retirerMonApport() {
     savingApport.value = false;
   }
 }
+
+const leaving = ref(false);
+async function seRetirer() {
+  if (!table.value || leaving.value) return;
+  leaving.value = true;
+  try {
+    await leaveTable(table.value.id);
+    toast.success('Tu t’es retiré de la tablée.');
+    table.value = await getTable(table.value.id);
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Impossible de te retirer.');
+  } finally {
+    leaving.value = false;
+  }
+}
+
 const joined = computed(() => Boolean(table.value?.myParticipation));
 const isPast = computed(() => table.value?.status === 'PASSED');
 const canJoin = computed(
@@ -350,9 +366,14 @@ onMounted(async () => {
             <RouterLink :to="`/messages/${table.id}`">Écrire au groupe</RouterLink>
           </Button>
         </template>
-        <Button v-else-if="joined" as-child size="lg" variant="secondary" class="w-full">
-          <RouterLink :to="`/messages/${table.id}`">Écrire à {{ table.host?.firstName ?? 'l’hôte' }}</RouterLink>
-        </Button>
+        <template v-else-if="joined">
+          <Button as-child size="lg" variant="secondary" class="w-full">
+            <RouterLink :to="`/messages/${table.id}`">Écrire à {{ table.host?.firstName ?? 'l’hôte' }}</RouterLink>
+          </Button>
+          <Button size="lg" variant="ghost" class="w-full text-terracotta" :disabled="leaving" @click="seRetirer">
+            {{ leaving ? 'Retrait…' : 'Se retirer de la tablée' }}
+          </Button>
+        </template>
         <Button v-else-if="canJoin" size="lg" class="w-full" @click="ouvrirParticipation">
           Participer à la tablée
         </Button>
