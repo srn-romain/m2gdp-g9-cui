@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import L from 'leaflet';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { dishPhotoUrl } from '@/lib/dishPhoto';
 import { formatDistance } from '@/lib/format';
 import type { Table } from '@/lib/types';
 
@@ -20,9 +21,8 @@ let derniereCle = '';
 function pinIcon(selected: boolean, table: Table): L.DivIcon {
   const size = selected ? 46 : 38;
   const bordure = selected ? '#B8442A' : '#FAF7F2';
-  const contenu = table.dishImageUrl
-    ? `<img src="${table.dishImageUrl}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:9999px;" />`
-    : `<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:18px;">🍽️</span>`;
+  const src = table.dishImageUrl || dishPhotoUrl(table.dishName, 120);
+  const contenu = `<img src="${src}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:9999px;" />`;
   return L.divIcon({
     className: '',
     html: `<span style="
