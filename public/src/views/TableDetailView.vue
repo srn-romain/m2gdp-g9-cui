@@ -8,6 +8,7 @@ import DishPhoto from '@/components/DishPhoto.vue';
 import IngredientGlyph from '@/components/IngredientGlyph.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Separator } from '@/components/ui/separator';
@@ -152,9 +153,12 @@ onMounted(async () => {
         <h1 class="text-title-lg font-titres text-sauge">{{ title }}</h1>
 
         <div class="flex items-center gap-2">
-          <span class="grid size-8 place-items-center rounded-full bg-sauge/12 text-label-sm text-sauge-fonce">
-            {{ (table.host?.firstName ?? '?').charAt(0).toUpperCase() }}
-          </span>
+          <Avatar class="size-8 bg-sauge/12">
+            <AvatarImage v-if="table.host?.avatarUrl" :src="table.host.avatarUrl" alt="" />
+            <AvatarFallback class="text-label-sm text-sauge-fonce">
+              {{ (table.host?.firstName ?? '?').charAt(0).toUpperCase() }}
+            </AvatarFallback>
+          </Avatar>
           <span class="text-body-md text-ardoise">{{ table.host?.firstName ?? 'Hôte' }}</span>
           <span
             v-if="table.host?.rating && table.host.rating.count > 0"
