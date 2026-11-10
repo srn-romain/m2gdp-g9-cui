@@ -38,7 +38,7 @@ async function generer(c: { env: Env }, messages: Array<{ role: string; content:
   }
 }
 
-const MODELE_GEMINI = 'gemini-2.5-flash';
+const MODELE_GEMINI = 'gemini-3.8-flash';
 
 /** Appel à l'API Gemini (clé fournie par Google AI Studio, stockée en secret Worker). */
 async function genererGemini(c: { env: Env }, messages: Array<{ role: string; content: string }>): Promise<string | null> {
