@@ -39,8 +39,10 @@ meRoutes.patch('/', async (c) => {
   const vals: unknown[] = [];
   const str = (k: string, max: number) => {
     if (b[k] === undefined) return;
-    if (typeof b[k] !== 'string' || (b[k] as string).length > max) throw new Error(k);
-    sets.push(`${k} = ?`); vals.push(b[k]);
+    const v = b[k];
+    if (typeof v !== 'string' || v.length > max) throw new Error(`INVALID:${k}`);
+    if (!v.trim()) throw new Error(`REQUIRED:${k}`);
+    sets.push(`${k} = ?`); vals.push(v.trim());
   };
   try {
     str('firstName', 80); str('lastName', 80); str('neighborhood', 80); str('city', 80);
@@ -50,7 +52,7 @@ meRoutes.patch('/', async (c) => {
     }
     if (b['about'] !== undefined) {
       if (b['about'] !== null && typeof b['about'] !== 'string') throw new Error('about');
-      if ((b['about'] as string).length > 500) throw new Error('about');
+      if (typeof b['about'] === 'string' && (b['about'] as string).length > 500) throw new Error('about');
       sets.push('about = ?'); vals.push(b['about']);
     }
     if (b['coordinates'] !== undefined && b['coordinates'] !== null) {
@@ -64,7 +66,11 @@ meRoutes.patch('/', async (c) => {
       sets.push('dietaryPreferences = ?'); vals.push(JSON.stringify(b['dietaryPreferences']));
     }
   } catch (e) {
-    return apiError('VALIDATION_ERROR', 'Champ invalide.', { field: (e as Error).message });
+    const brut = String((e as Error).message);
+    const sep = brut.indexOf(':');
+    const kind = sep >= 0 ? brut.slice(0, sep) : '';
+    const field = sep >= 0 ? brut.slice(sep + 1) : brut;
+    return apiError('VALIDATION_ERROR', kind === 'REQUIRED' ? 'Champ requis.' : 'Champ invalide.', { field });
   }
   if (!sets.length) return apiError('VALIDATION_ERROR', 'Rien a mettre a jour.');
   sets.push('updatedAt = ?'); vals.push(nowIso()); vals.push(auth.userId);

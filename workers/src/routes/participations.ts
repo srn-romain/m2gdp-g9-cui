@@ -75,7 +75,7 @@ participationsRoutes.delete('/tables/:tableId/participations/me', async (c) => {
   return c.body(null, 204);
 });
 
-participationsRoutes.put('/tables/:tableId/contributions/me', async (c) => {
+participationsRoutes.patch('/tables/:tableId/contributions/me', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
   const tableId = c.req.param('tableId');

@@ -177,6 +177,19 @@ async function suggestionsMealDb(texte: string): Promise<Array<{ label: string; 
   return suggestionsLocales(texte);
 }
 
+/** Image du plat depuis TheMealDB, quand elle existe. */
+async function mealDbImage(texte: string): Promise<string | null> {
+  try {
+    const q = encodeURIComponent(texte.trim().slice(0, 80));
+    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${q}`);
+    if (!res.ok) return null;
+    const json = (await res.json()) as { meals?: Array<{ strMealThumb?: string }> };
+    return json?.meals?.[0]?.strMealThumb ?? null;
+  } catch {
+    return null;
+  }
+}
+
 aiRoutes.post('/table-draft', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
@@ -189,19 +202,21 @@ aiRoutes.post('/table-draft', async (c) => {
     {
       role: 'system',
       content:
-        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée pour 4 personnes par défaut. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), ambiance (string courte décrivant l\'ambiance du repas, avec possibilité de sauts de ligne), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier, 4 par défaut), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes pour 4 personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
+        'Tu es un assistant de cuisine convivial. À partir de la description fournie par l\'utilisateur (que tu dois respecter et conserver), propose un brouillon de tablée. Si la description mentionne un nombre de personnes (ex. « pour 6 », « 8 convives »), utilise ce nombre pour seatsTotal et adapte les quantités en conséquence ; sinon utilise 4. Réponds UNIQUEMENT en JSON avec les clés : dishName (string court), description (string, reprend la description de l\'utilisateur telle quelle), ambiance (string, un paragraphe de 2 à 3 phrases fluides décrivant l\'ambiance du repas, PAS une liste ni une énumération), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes adaptées au nombre de personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
     },
     { role: 'user', content: description },
   ];
   const reponse = (await genererGemini(c, messages)) ?? (await generer(c, messages));
 
   if (!reponse) {
+    const nomRepli = description.slice(0, 60);
     return c.json({
       data: {
-        dishName: description.slice(0, 60),
+        dishName: nomRepli,
         description,
         ambiance: null,
         wantedContributions: await suggestionsMealDb(description),
+        dishImageUrl: await mealDbImage(nomRepli),
         seatsTotal: 4,
         durationMinutes: 120,
       },
@@ -217,6 +232,7 @@ aiRoutes.post('/table-draft', async (c) => {
       description: typeof parsed?.description === 'string' ? parsed.description : description,
       ambiance: typeof parsed?.ambiance === 'string' ? parsed.ambiance : null,
       wantedContributions: wantedIA ?? await suggestionsMealDb(`${nom} ${description}`),
+      dishImageUrl: await mealDbImage(nom),
       seatsTotal: Number.isFinite(Number(parsed?.seatsTotal)) ? Number(parsed?.seatsTotal) : 4,
       durationMinutes: Number.isFinite(Number(parsed?.durationMinutes)) ? Number(parsed?.durationMinutes) : 120,
     },

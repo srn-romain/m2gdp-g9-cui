@@ -224,9 +224,9 @@ tablesRoutes.post('/', async (c) => {
   // R1 : tablee + participation HOST CONFIRMED dans la meme transaction.
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO tables (id, hostId, dishName, description, ambiance, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, dietaryTags, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(id, auth.userId, (dish as string).trim(), (b['description'] as string) ?? null, (b['ambiance'] as string) ?? null, new Date(String(b['startsAt'])).toISOString(),
+      `INSERT INTO tables (id, hostId, dishName, description, ambiance, dishImageUrl, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, dietaryTags, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(id, auth.userId, (dish as string).trim(), (b['description'] as string) ?? null, (b['ambiance'] as string) ?? null, (b['dishImageUrl'] as string) ?? null, new Date(String(b['startsAt'])).toISOString(),
       Number(b['durationMinutes'] ?? 120), seats, vis, isVegetarian, b['hasAllergenNotice'] ? 1 : 0, JSON.stringify(dietaryTags),
       loc['neighborhood'], loc['city'], (loc['postalCode'] as string) ?? null,
       co.latitude, co.longitude, (loc['addressLine'] as string) ?? null, JSON.stringify(wanted), now),
@@ -262,6 +262,24 @@ tablesRoutes.get('/suggestions', async (c) => {
       cities: (cities.results ?? []).map((r) => r.value),
     },
   });
+});
+
+tablesRoutes.get('/popular', async (c) => {
+  const auth = await requireAuth(c);
+  if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
+  const rows = await c.env.DB.prepare(
+    "SELECT dishName, startsAt, durationMinutes FROM tables WHERE status IN ('OPEN','FULL')",
+  ).all<{ dishName: string; startsAt: string; durationMinutes: number }>();
+  const compteur = new Map<string, number>();
+  for (const r of rows.results ?? []) {
+    if (isPassed(r.startsAt, r.durationMinutes)) continue;
+    compteur.set(r.dishName, (compteur.get(r.dishName) ?? 0) + 1);
+  }
+  const dishes = [...compteur.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([nom]) => nom);
+  return c.json({ data: { dishes } });
 });
 
 tablesRoutes.get('/:tableId', async (c) => {
