@@ -15,7 +15,6 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { dishPhotoUrl } from '@/lib/dishPhoto';
 import {
-  contributionLine,
   formatDistance,
   formatDay,
   formatIngredientQuantity,
@@ -39,14 +38,22 @@ const title = computed(() => (table.value ? tableTitle(table.value) : ''));
 const contributions = computed(() => table.value?.contributions ?? []);
 const wanted = computed(() => table.value?.wantedContributions ?? []);
 const isHost = computed(() => table.value?.myParticipation?.role === 'HOST');
-/** Associe chaque ingrédient à la personne qui s'est engagée à l'apporter. */
 const apporteur = computed(() => {
-  const map = new Map<string, string>();
+  const map = new Map<string, { firstName: string; userId: string }>();
   for (const c of contributions.value) {
-    if (c.participant) map.set(c.label.trim().toLowerCase(), c.participant.firstName);
+    if (c.participant) {
+      map.set(c.label.trim().toLowerCase(), { firstName: c.participant.firstName, userId: c.participant.id });
+    }
   }
   return map;
 });
+
+const contributionsLibres = computed(() => {
+  const labels = new Set(wanted.value.map((w) => w.label.trim().toLowerCase()));
+  return contributions.value.filter((c) => !labels.has(c.label.trim().toLowerCase()));
+});
+
+const monId = computed(() => meStore.profile?.id ?? '');
 
 const editWantedOpen = ref(false);
 const draftWanted = ref<WantedContribution[]>([]);
@@ -285,7 +292,8 @@ onMounted(async () => {
             <li
               v-for="(ingredient, index) in wanted"
               :key="`${ingredient.label}-${index}`"
-              class="flex items-center gap-3 rounded-xl border border-ardoise/10 py-2 pr-3 pl-2"
+              class="flex items-center gap-3 rounded-xl border py-2 pr-3 pl-2"
+              :class="apporteur.get(ingredient.label.trim().toLowerCase()) ? 'border-sauge/40 bg-sauge/5' : 'border-ardoise/10'"
             >
               <IngredientGlyph :label="ingredient.label" :size="40" />
               <span class="flex min-w-0 flex-1 flex-col">
@@ -298,49 +306,38 @@ onMounted(async () => {
                 </span>
                 <span
                   v-if="apporteur.get(ingredient.label.trim().toLowerCase())"
-                  class="text-micro font-medium text-sauge-fonce"
+                  class="flex items-center gap-1 text-micro font-medium text-sauge-fonce"
                 >
-                  Apporté par {{ apporteur.get(ingredient.label.trim().toLowerCase()) }}
+                  <Check class="size-3.5" :stroke-width="2.5" />
+                  Apporté par {{ apporteur.get(ingredient.label.trim().toLowerCase())?.firstName }}
                 </span>
                 <span v-else class="text-micro text-secondaire">À pourvoir</span>
               </span>
+              <button
+                v-if="apporteur.get(ingredient.label.trim().toLowerCase())?.userId === monId"
+                type="button"
+                class="shrink-0 text-micro font-medium text-terracotta"
+                :disabled="savingApport"
+                @click="retirerMonApport"
+              >
+                {{ savingApport ? '…' : 'Retirer' }}
+              </button>
             </li>
-          </ul>
-        </section>
 
-        <Separator v-if="wanted.length" />
-
-        <section class="flex flex-col gap-3">
-          <h2 class="text-body-lg-strong text-ardoise">Ce que chacun apporte</h2>
-          <ul v-if="contributions.length" class="flex flex-col gap-2">
             <li
-              v-for="contribution in contributions"
+              v-for="contribution in contributionsLibres"
               :key="contribution.id"
-              class="flex items-center justify-between gap-3 rounded-xl border border-ardoise/10 px-3 py-2"
+              class="flex items-center gap-3 rounded-xl border border-ardoise/10 py-2 pr-3 pl-2"
             >
-              <span class="flex items-center gap-2 text-body-md text-ardoise">
-                <Check class="size-4 text-sauge" :stroke-width="2.25" />
-                {{ contributionLine(contribution) }}
-              </span>
-              <span v-if="contribution.participant" class="text-micro text-secondaire">
-                {{ contribution.participant.firstName }}
+              <IngredientGlyph :label="contribution.label" :size="40" />
+              <span class="flex min-w-0 flex-1 flex-col">
+                <span class="text-body-md font-bold text-ardoise">{{ contribution.label }}</span>
+                <span class="text-micro text-sauge-fonce">Apporté par {{ contribution.participant?.firstName }}</span>
               </span>
             </li>
           </ul>
-          <p v-else class="text-body-sm text-secondaire">
-            Personne n'a encore annoncé son apport.
-          </p>
-          <Button
-            v-if="table.myParticipation?.contribution"
-            type="button"
-            variant="ghost"
-            size="sm"
-            :disabled="savingApport"
-            @click="retirerMonApport"
-          >
-            {{ savingApport ? 'Retrait…' : 'Retirer mon apport' }}
-          </Button>
         </section>
+
       </div>
 
       <div class="app-pad mt-auto flex flex-col gap-3 pt-6">
