@@ -25,7 +25,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePosition } from '@/composables/usePosition';
-import { listTables, suggestTables } from '@/lib/api';
+import { listTables, popularDishes, suggestTables, suggestTablesWithAi } from '@/lib/api';
 import {
   DIETARY_OPTIONS,
   formatDay,
@@ -47,6 +47,7 @@ const position = usePosition();
 const route = useRoute();
 
 const q = ref('');
+const rechercheGlobale = ref(false);
 const ceSoir = ref(false);
 const regimes = ref<DietaryPreference[]>([]);
 const radiusKm = ref(RAYON_DEFAUT);
@@ -55,6 +56,7 @@ const view = ref<'liste' | 'carte'>('liste');
 const selectedId = ref<string | null>(null);
 const suggestions = ref<Array<{ type: 'plat' | 'quartier' | 'ville'; value: string }>>([]);
 const suggestionsOuvertes = ref(false);
+const fallbackSuggestions = ref<string[]>([]);
 
 const tables = ref<Table[]>([]);
 const total = ref(0);
@@ -107,7 +109,9 @@ async function load() {
     await ensurePosition();
     // Sans point de départ connu (géolocalisation refusée, profil incomplet),
     // on ne peut pas trier par distance : on trie par date.
-    const aUnePosition = position.latitude.value != null && position.longitude.value != null;
+    const globale = rechercheGlobale.value;
+    rechercheGlobale.value = false;
+    const aUnePosition = position.latitude.value != null && position.longitude.value != null && !globale;
     const page = await listTables({
       lat: aUnePosition ? position.latitude.value! : undefined,
       lng: aUnePosition ? position.longitude.value! : undefined,
@@ -122,6 +126,8 @@ async function load() {
     tables.value = page.data;
     total.value = page.pagination.totalItems;
     if (!page.data.some((t) => t.id === selectedId.value)) selectedId.value = page.data[0]?.id ?? null;
+    if (!page.data.length && q.value.trim().length > 1) await chargerFallback();
+    else fallbackSuggestions.value = [];
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Recherche impossible.';
     tables.value = [];
@@ -173,6 +179,29 @@ async function chargerSuggestions() {
     suggestions.value = [];
     suggestionsOuvertes.value = false;
   }
+}
+
+async function chargerFallback() {
+  try {
+    const populaires = await popularDishes();
+    let semantiques: string[] = [];
+    try {
+      const ia = await suggestTablesWithAi(q.value);
+      semantiques = ia.dishes;
+    } catch {
+      semantiques = [];
+    }
+    fallbackSuggestions.value = [...new Set([...semantiques, ...populaires])].slice(0, 6);
+  } catch {
+    fallbackSuggestions.value = [];
+  }
+}
+
+function choisirFallback(dish: string) {
+  q.value = dish;
+  rechercheGlobale.value = true;
+  fallbackSuggestions.value = [];
+  suggestionsOuvertes.value = false;
 }
 
 function choisirSuggestion(suggestion: { type: 'plat' | 'quartier' | 'ville'; value: string }) {
@@ -409,6 +438,25 @@ onMounted(() => {
               Retirer les filtres
             </Button>
           </EmptyContent>
+          <div v-if="q.trim().length > 1 && fallbackSuggestions.length" class="mt-1 flex flex-col gap-2">
+            <p class="text-body-sm text-secondaire">Essaie plutôt :</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="dish in fallbackSuggestions"
+                :key="dish"
+                type="button"
+                class="rounded-full border border-sauge/30 bg-sauge/10 px-3 py-2 text-label-md text-sauge-fonce"
+                @click.prevent="choisirFallback(dish)"
+              >
+                {{ dish }}
+              </button>
+            </div>
+          </div>
+          <Button v-if="q.trim().length > 1" as-child size="default" class="mt-2 w-full">
+            <RouterLink :to="{ path: '/creer', query: { dish: q.trim() } }">
+              Créer cette tablée
+            </RouterLink>
+          </Button>
         </Empty>
 
         <div v-else class="flex flex-col gap-3">

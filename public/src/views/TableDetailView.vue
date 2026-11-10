@@ -105,6 +105,32 @@ async function retirerMonApport() {
   }
 }
 
+const changerOuverte = ref(false);
+const changerChoix = ref<string | null>(null);
+const changerLibre = ref('');
+
+function ouvrirChangement() {
+  changerChoix.value = table.value?.myParticipation?.contribution?.label ?? null;
+  changerLibre.value = '';
+  changerOuverte.value = true;
+}
+
+async function enregistrerChangement() {
+  if (!table.value || savingApport.value) return;
+  const label = (changerLibre.value.trim() || changerChoix.value || '').trim();
+  if (!label) return;
+  savingApport.value = true;
+  try {
+    table.value = await updateMyContribution(table.value.id, { label, category: 'INGREDIENT' });
+    changerOuverte.value = false;
+    toast.success('Apport mis à jour.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Mise à jour impossible.');
+  } finally {
+    savingApport.value = false;
+  }
+}
+
 const leaving = ref(false);
 async function seRetirer() {
   if (!table.value || leaving.value) return;
@@ -333,10 +359,9 @@ onMounted(async () => {
                 v-if="apporteur.get(ingredient.label.trim().toLowerCase())?.userId === monId"
                 type="button"
                 class="shrink-0 text-micro font-medium text-terracotta"
-                :disabled="savingApport"
-                @click="retirerMonApport"
+                @click="ouvrirChangement"
               >
-                {{ savingApport ? '…' : 'Retirer' }}
+                Changer
               </button>
             </li>
 
@@ -350,6 +375,14 @@ onMounted(async () => {
                 <span class="text-body-md font-bold text-ardoise">{{ contribution.label }}</span>
                 <span class="text-micro text-sauge-fonce">Apporté par {{ contribution.participant?.firstName }}</span>
               </span>
+              <button
+                v-if="contribution.participant?.id === monId"
+                type="button"
+                class="shrink-0 text-micro font-medium text-terracotta"
+                @click="ouvrirChangement"
+              >
+                Changer
+              </button>
             </li>
           </ul>
         </section>
@@ -464,6 +497,42 @@ onMounted(async () => {
           </div>
           <Button size="lg" class="w-full" :disabled="savingWanted" @click="enregistrerWanted">
             {{ savingWanted ? 'Enregistrement…' : 'Enregistrer' }}
+          </Button>
+        </div>
+      </DrawerContent>
+    </Drawer>
+
+    <Drawer v-model:open="changerOuverte">
+      <DrawerContent class="bg-creme">
+        <DrawerHeader class="app-pad text-left">
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Changer mon apport</DrawerTitle>
+        </DrawerHeader>
+        <div class="app-pad flex flex-col gap-3 pb-8">
+          <div v-if="wanted.length" class="flex flex-col gap-2">
+            <button
+              v-for="item in wanted"
+              :key="item.label"
+              type="button"
+              class="flex items-center justify-between rounded-xl border px-3 py-2.5 text-body-md text-ardoise"
+              :class="changerChoix === item.label ? 'border-terracotta bg-terracotta/10' : 'border-ardoise/10'"
+              @click="changerChoix = item.label; changerLibre = ''"
+            >
+              <span>{{ item.label }}</span>
+              <Check v-if="changerChoix === item.label" class="size-4 text-terracotta" :stroke-width="2.25" />
+            </button>
+          </div>
+          <input
+            v-model="changerLibre"
+            type="text"
+            placeholder="J'apporte autre chose…"
+            class="h-12 w-full rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
+            @input="changerChoix = null"
+          />
+          <Button size="lg" class="w-full" :disabled="savingApport || (!changerChoix && !changerLibre.trim())" @click="enregistrerChangement">
+            {{ savingApport ? 'Enregistrement…' : 'Enregistrer' }}
+          </Button>
+          <Button type="button" variant="ghost" size="default" class="w-full text-terracotta" :disabled="savingApport" @click="retirerMonApport">
+            Retirer mon apport
           </Button>
         </div>
       </DrawerContent>

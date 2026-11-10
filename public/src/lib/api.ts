@@ -103,9 +103,32 @@ export async function apiFetch<T = unknown>(path: string, options: FetchOptions 
   if (!res.ok) {
     const details = body?.error?.details;
     const cause = typeof details?.cause === 'string' ? details.cause : '';
-    const message = body?.error?.message ?? 'Une erreur est survenue.';
+    const field = typeof details?.field === 'string' ? details.field : '';
+    const CHAMP_LABELS: Record<string, string> = {
+      firstName: 'prénom',
+      lastName: 'nom',
+      neighborhood: 'quartier',
+      city: 'ville',
+      email: 'e-mail',
+      dishName: 'nom du plat',
+      description: 'description',
+      startsAt: 'date et heure',
+      seatsTotal: 'nombre de places',
+      wantedContributions: 'ingrédients',
+      coordinates: 'adresse',
+      location: 'lieu',
+      quantity: 'quantité',
+      unit: 'unité',
+      category: 'catégorie',
+    };
+    const base = body?.error?.message ?? 'Une erreur est survenue.';
+    const message = field
+      ? `${base} : ${CHAMP_LABELS[field] ?? field}`
+      : cause
+        ? `${base} (${cause})`
+        : base;
     throw new ApiError(
-      cause ? `${message} (${cause})` : message,
+      message,
       body?.error?.code ?? 'INTERNAL_ERROR',
       res.status,
       details,
@@ -171,10 +194,15 @@ export function suggestTables(query: string): Promise<TableSuggestions> {
   return apiGet<{ data: TableSuggestions }>(`${BASE}/tables/suggestions?q=${encodeURIComponent(query.trim())}`).then((r) => r.data);
 }
 
+export function popularDishes(): Promise<string[]> {
+  return apiGet<{ data: { dishes: string[] } }>(`${BASE}/tables/popular`).then((r) => r.data.dishes);
+}
+
 export interface TableDraft {
   dishName: string;
   description: string;
   ambiance?: string | null;
+  dishImageUrl?: string | null;
   wantedContributions: Array<{ label: string; quantity?: number | null; unit?: string | null }>;
   seatsTotal: number;
   durationMinutes: number;
@@ -259,7 +287,7 @@ export interface MediaUpload {
   expiresIn: number;
 }
 
-export const presignMedia = (kind: 'avatar' | 'message', contentType: string, size: number) =>
+export const presignMedia = (kind: 'avatar' | 'message' | 'dish', contentType: string, size: number) =>
   DEMO_MODE
     ? Promise.resolve({ key: 'demo', uploadUrl: '', expiresIn: 600 })
     : apiPost<MediaUpload>(`${BASE}/avatar/presign`, { kind, contentType, size });

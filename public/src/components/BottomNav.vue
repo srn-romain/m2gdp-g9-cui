@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { House, MessageCircle, Search, User, UtensilsCrossed } from '@lucide/vue';
+import { computed, onMounted } from 'vue';
 import type { Component } from 'vue';
+import { useMeStore } from '@/stores/me';
+
+const meStore = useMeStore();
+const locked = computed(() => meStore.profile != null && !meStore.isOnboarded);
+
+onMounted(() => {
+  void meStore.load();
+});
 
 const items: Array<{ to: string; label: string; icon: Component; exact?: boolean }> = [
   { to: '/', label: 'Accueil', icon: House, exact: true },
@@ -27,7 +36,9 @@ const items: Array<{ to: string; label: string; icon: Component; exact?: boolean
         :href="href"
         class="flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-nav-label transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
         :class="
-          (item.exact ? isExactActive : isActive)
+          locked && item.to !== '/profil'
+            ? 'pointer-events-none opacity-40 text-ardoise'
+            : (item.exact ? isExactActive : isActive)
             ? 'text-terracotta'
             : 'text-ardoise hover:text-sauge'
         "

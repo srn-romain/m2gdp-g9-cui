@@ -167,6 +167,7 @@ export interface TableCreate {
   dishName: string;
   description?: string;
   ambiance?: string;
+  dishImageUrl?: string;
   startsAt: string;
   durationMinutes?: number;
   seatsTotal: number;

@@ -51,6 +51,12 @@ const profile = computed(() => meStore.profile);
 const fullName = computed(() =>
   profile.value ? `${profile.value.firstName} ${profile.value.lastName}`.trim() : '',
 );
+const nomIncomplet = computed(
+  () => !profile.value?.firstName || !profile.value?.lastName,
+);
+const adresseIncomplete = computed(
+  () => !profile.value?.neighborhood || !profile.value?.city,
+);
 
 function togglePreference(value: string, checked: boolean) {
   const next = new Set(preferences.value);
@@ -271,7 +277,10 @@ onMounted(async () => {
           >
             <User class="size-5 shrink-0 text-sauge" :stroke-width="1.75" />
             <span class="flex-1">
-              <span class="block text-body-md text-ardoise">Mes informations</span>
+              <span class="flex items-center gap-1.5 text-body-md text-ardoise">
+                Mes informations
+                <span v-if="nomIncomplet" class="size-2 rounded-full bg-terracotta" aria-label="À compléter"></span>
+              </span>
               <span class="block text-micro text-secondaire">
                 {{ fullName || 'Prénom et nom à compléter' }}
               </span>
@@ -286,7 +295,10 @@ onMounted(async () => {
           >
             <MapPin class="size-5 shrink-0 text-sauge" :stroke-width="1.75" />
             <span class="flex-1">
-              <span class="block text-body-md text-ardoise">Mon adresse</span>
+              <span class="flex items-center gap-1.5 text-body-md text-ardoise">
+                Mon adresse
+                <span v-if="adresseIncomplete" class="size-2 rounded-full bg-terracotta" aria-label="À compléter"></span>
+              </span>
               <span class="block text-micro text-secondaire">
                 {{ profile.neighborhood }} · {{ profile.city }}
               </span>

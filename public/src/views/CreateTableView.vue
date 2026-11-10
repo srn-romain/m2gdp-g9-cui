@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Minus, Plus, Sparkles, Users } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 import AddressField from '@/components/AddressField.vue';
 import AppBar from '@/components/AppBar.vue';
@@ -13,19 +13,23 @@ import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
-import { createTable, draftTableWithAi } from '@/lib/api';
+import { createTable, draftTableWithAi, mediaUrl, presignMedia, uploadMedia } from '@/lib/api';
 import { DIETARY_OPTIONS, formatIngredientQuantity, fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
 import { CHAMP } from '@/lib/styles';
 import type { Coordinates, DietaryPreference, QuantityUnit } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
 
 const router = useRouter();
+const route = useRoute();
 const meStore = useMeStore();
 const { chercherUne } = useAddressSearch();
 
 const dishName = ref('');
 const description = ref('');
 const ambiance = ref('');
+const dishImageUrl = ref('');
+const champImage = ref<HTMLInputElement | null>(null);
+const uploadingImage = ref(false);
 /** Créneau par défaut : aujourd'hui 12 h 30, ou demain s'il est déjà passé. */
 function creneauParDefaut() {
   const quand = new Date();
@@ -152,8 +156,8 @@ async function enrichirAvecIa() {
   try {
     const draft = await draftTableWithAi(texte);
     if (draft.dishName) dishName.value = draft.dishName;
-    if (draft.description) description.value = draft.description;
     if (draft.ambiance) ambiance.value = draft.ambiance;
+    if (draft.dishImageUrl) dishImageUrl.value = draft.dishImageUrl;
     if (draft.seatsTotal) seatsTotal.value = Math.min(30, Math.max(1, draft.seatsTotal));
     if (Array.isArray(draft.wantedContributions)) {
       const unitesValides = new Set<string>(['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION']);
@@ -181,6 +185,32 @@ async function enrichirAvecIa() {
   }
 }
 
+async function choisirImage(evenement: Event) {
+  const champ = evenement.target as HTMLInputElement;
+  const fichier = champ.files?.[0];
+  champ.value = '';
+  if (!fichier) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(fichier.type)) {
+    toast.error('Formats acceptés : JPEG, PNG ou WebP.');
+    return;
+  }
+  if (fichier.size > 5 * 1024 * 1024) {
+    toast.error('Image trop lourde (5 Mo maximum).');
+    return;
+  }
+  uploadingImage.value = true;
+  try {
+    const { key, uploadUrl } = await presignMedia('dish', fichier.type, fichier.size);
+    await uploadMedia(uploadUrl, fichier, fichier.type);
+    dishImageUrl.value = mediaUrl(key);
+    toast.success('Image du plat enregistrée.');
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "L'envoi de l'image a échoué.");
+  } finally {
+    uploadingImage.value = false;
+  }
+}
+
 async function submit() {
   if (!canSubmit.value) return;
   submitting.value = true;
@@ -194,6 +224,7 @@ async function submit() {
       dishName: dishName.value.trim(),
       description: description.value.trim() || undefined,
       ambiance: ambiance.value.trim() || undefined,
+      dishImageUrl: dishImageUrl.value.trim() || undefined,
       startsAt: startsAt.value,
       seatsTotal: seatsTotal.value,
       dietaryTags: dietaryTags.value.length ? dietaryTags.value : undefined,
@@ -220,6 +251,12 @@ async function submit() {
 onMounted(async () => {
   await meStore.load();
   if (meStore.profile?.neighborhood) lieu.value = meStore.profile.neighborhood;
+  const dish = typeof route.query.dish === 'string' ? route.query.dish.trim() : '';
+  if (dish) {
+    dishName.value = dish;
+    description.value = dish;
+    void enrichirAvecIa();
+  }
 });
 </script>
 
@@ -252,6 +289,30 @@ onMounted(async () => {
           <FieldDescription>
             Le titre affiché sera «&nbsp;{{ dishName || 'ton plat' }} chez toi&nbsp;».
           </FieldDescription>
+        </Field>
+
+        <Field v-if="step === 1">
+          <FieldLabel>Image du plat</FieldLabel>
+          <div v-if="dishImageUrl" class="mb-2 overflow-hidden rounded-2xl">
+            <img :src="dishImageUrl" alt="" class="aspect-[4/3] w-full object-cover" />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="default"
+            class="w-full"
+            :disabled="uploadingImage"
+            @click="champImage?.click()"
+          >
+            {{ uploadingImage ? 'Envoi…' : dishImageUrl ? 'Changer d’image' : 'Choisir une image' }}
+          </Button>
+          <input
+            ref="champImage"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="hidden"
+            @change="choisirImage"
+          />
         </Field>
 
         <div v-if="step === 1" class="grid grid-cols-2 gap-3">
@@ -299,17 +360,6 @@ onMounted(async () => {
             placeholder="Un gratin maison à partager entre voisins."
             class="rounded-2xl border-ardoise/10 bg-surface text-body-md"
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="default"
-            class="mt-2 w-full border-terracotta/40 text-terracotta"
-            :disabled="aiLoading"
-            @click="enrichirAvecIa"
-          >
-            <Sparkles data-icon="inline-start" class="text-terracotta" />
-            {{ aiLoading ? 'Génération…' : 'Enrichir avec l’IA' }}
-          </Button>
         </Field>
 
         <Field v-if="step === 1">
@@ -321,6 +371,17 @@ onMounted(async () => {
             placeholder="Ambiance chaleureuse attendue chez l'hôte"
             class="rounded-2xl border-ardoise/10 bg-surface text-body-md"
           />
+          <Button
+            type="button"
+            variant="outline"
+            size="default"
+            class="mt-2 w-full border-terracotta/40 text-terracotta"
+            :disabled="aiLoading"
+            @click="enrichirAvecIa"
+          >
+            <Sparkles data-icon="inline-start" class="text-terracotta" />
+            {{ aiLoading ? 'Génération…' : 'Enrichir avec l’IA' }}
+          </Button>
         </Field>
 
         <!-- Liste de courses : l'hôte propose, les invités choisissent. -->

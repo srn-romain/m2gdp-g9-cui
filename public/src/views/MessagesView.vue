@@ -293,6 +293,13 @@ watch(tableId, (id) => {
           >
             Voir la tablée
           </RouterLink>
+          <button
+            type="button"
+            class="block w-full border-t border-ardoise/10 px-4 py-3 text-left text-body-md text-ardoise transition-colors hover:bg-ardoise/5"
+            @click="contributionsOuvertes = true; menuOuvert = false"
+          >
+            Contributions
+          </button>
           <RouterLink
             to="/explorer"
             class="block border-t border-ardoise/10 px-4 py-3 text-body-md text-ardoise transition-colors hover:bg-ardoise/5"
@@ -402,15 +409,6 @@ watch(tableId, (id) => {
         aria-label="Envoyer le message"
       >
         <ArrowUp class="size-5" :stroke-width="2.25" />
-      </button>
-      <button
-        v-else
-        type="button"
-        class="grid size-11 shrink-0 place-items-center rounded-full bg-sauge/12 text-sauge-fonce transition-colors hover:bg-sauge/20"
-        aria-label="Voir les contributions"
-        @click="contributionsOuvertes = true"
-      >
-        <Users class="size-5" :stroke-width="2" />
       </button>
     </form>
 
