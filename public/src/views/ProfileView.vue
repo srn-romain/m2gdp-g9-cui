@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Camera, ChevronRight, Leaf, LogOut, MapPin, Utensils } from '@lucide/vue';
+import { Camera, ChevronRight, Leaf, LogOut, MapPin, TriangleAlert, User, Utensils } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -11,7 +11,8 @@ import MascotBubble from '@/components/MascotBubble.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
@@ -38,6 +39,11 @@ const savingAdresse = ref(false);
 
 const champAvatar = ref<HTMLInputElement | null>(null);
 const uploadingAvatar = ref(false);
+
+const identityOpen = ref(false);
+const prenom = ref('');
+const nom = ref('');
+const savingIdentity = ref(false);
 
 const profile = computed(() => meStore.profile);
 const fullName = computed(() =>
@@ -135,6 +141,32 @@ async function savePreferences() {
   }
 }
 
+/** Ouvre le formulaire d'identité prérempli avec le profil courant. */
+function ouvrirIdentite() {
+  prenom.value = profile.value?.firstName ?? '';
+  nom.value = profile.value?.lastName ?? '';
+  identityOpen.value = true;
+}
+
+async function saveIdentity() {
+  const first = prenom.value.trim();
+  const last = nom.value.trim();
+  if (!first || !last) {
+    toast.error('Renseigne ton prénom et ton nom.');
+    return;
+  }
+  savingIdentity.value = true;
+  try {
+    await meStore.save({ firstName: first, lastName: last });
+    toast.success('Informations enregistrées.');
+    identityOpen.value = false;
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "L'enregistrement a échoué.");
+  } finally {
+    savingIdentity.value = false;
+  }
+}
+
 async function logout() {
   await authStore.logout();
   meStore.reset();
@@ -144,6 +176,8 @@ async function logout() {
 onMounted(async () => {
   const me = await meStore.load(true);
   preferences.value = [...(me?.dietaryPreferences ?? [])];
+  prenom.value = me?.firstName ?? '';
+  nom.value = me?.lastName ?? '';
   try {
     const page = await listMyTables('upcoming', 1, 1);
     upcomingCount.value = page.pagination.totalItems;
@@ -199,6 +233,17 @@ onMounted(async () => {
           </div>
         </div>
 
+        <div
+          v-if="!meStore.isOnboarded"
+          class="flex items-start gap-2 rounded-2xl border border-terracotta/30 bg-terracotta/10 p-3"
+        >
+          <TriangleAlert class="mt-0.5 size-5 shrink-0 text-terracotta" :stroke-width="1.75" />
+          <p class="text-body-sm text-ardoise">
+            Ton profil est incomplet : renseigne ton prénom, ton nom et ton adresse pour
+            pouvoir rejoindre ou créer une tablée.
+          </p>
+        </div>
+
         <MascotBubble text="Tout est au même endroit !" :image="illustration" :size="104" />
 
         <InstallAppCard />
@@ -217,6 +262,21 @@ onMounted(async () => {
             </span>
             <ChevronRight class="size-4 text-secondaire" />
           </RouterLink>
+
+          <button
+            type="button"
+            class="flex items-center gap-3 border-b border-ardoise/10 py-4 text-left transition-colors hover:bg-ardoise/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
+            @click="ouvrirIdentite"
+          >
+            <User class="size-5 shrink-0 text-sauge" :stroke-width="1.75" />
+            <span class="flex-1">
+              <span class="block text-body-md text-ardoise">Mes informations</span>
+              <span class="block text-micro text-secondaire">
+                {{ fullName || 'Prénom et nom à compléter' }}
+              </span>
+            </span>
+            <ChevronRight class="size-4 text-secondaire" />
+          </button>
 
           <button
             type="button"
@@ -319,6 +379,55 @@ onMounted(async () => {
             @click="saveAdresse"
           >
             {{ savingAdresse ? 'Enregistrement…' : "Mettre à jour l'adresse" }}
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+
+    <Drawer v-model:open="identityOpen">
+      <DrawerContent class="bg-creme">
+        <DrawerHeader class="app-pad text-left">
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Mes informations</DrawerTitle>
+          <DrawerDescription class="text-body-sm text-secondaire">
+            Ton prénom s'affiche sur les tablées que tu proposes ou rejoins.
+          </DrawerDescription>
+        </DrawerHeader>
+
+        <div class="app-pad flex flex-col gap-4 pb-2">
+          <FieldGroup class="gap-3">
+            <Field>
+              <FieldLabel for="profile-firstname">Prénom</FieldLabel>
+              <InputGroup class="h-12 rounded-xl border-ardoise/12 bg-creme">
+                <InputGroupInput
+                  id="profile-firstname"
+                  v-model="prenom"
+                  autocomplete="given-name"
+                  class="text-body-md"
+                />
+              </InputGroup>
+            </Field>
+            <Field>
+              <FieldLabel for="profile-lastname">Nom</FieldLabel>
+              <InputGroup class="h-12 rounded-xl border-ardoise/12 bg-creme">
+                <InputGroupInput
+                  id="profile-lastname"
+                  v-model="nom"
+                  autocomplete="family-name"
+                  class="text-body-md"
+                />
+              </InputGroup>
+            </Field>
+          </FieldGroup>
+        </div>
+
+        <DrawerFooter class="app-pad pb-8">
+          <Button
+            size="lg"
+            class="w-full"
+            :disabled="savingIdentity || !prenom.trim() || !nom.trim()"
+            @click="saveIdentity"
+          >
+            {{ savingIdentity ? 'Enregistrement…' : 'Enregistrer' }}
           </Button>
         </DrawerFooter>
       </DrawerContent>

@@ -23,9 +23,11 @@ import {
 } from '@/lib/format';
 import { getTable, joinTable } from '@/lib/api';
 import type { ContributionCategory, QuantityUnit, Table } from '@/lib/types';
+import { useMeStore } from '@/stores/me';
 
 const route = useRoute();
 const router = useRouter();
+const meStore = useMeStore();
 const tableId = computed(() => String(route.params.id));
 const table = ref<Table | null>(null);
 const loading = ref(true);
@@ -47,7 +49,13 @@ const apportLibre = ref('');
 const joining = ref(false);
 const idempotencyKey = crypto.randomUUID();
 
-function ouvrirParticipation() {
+async function ouvrirParticipation() {
+  await meStore.load();
+  if (!meStore.isOnboarded) {
+    toast.info('Complète ton profil pour participer.');
+    await router.push('/profil');
+    return;
+  }
   apportChoisi.value = wanted.value[0]?.label ?? null;
   apportLibre.value = '';
   participationOuverte.value = true;

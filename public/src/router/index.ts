@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { estErreurDeChunk, rechargerUneFois } from '@/lib/chunkReload';
 import { useAuthStore } from '@/stores/auth';
+import { useMeStore } from '@/stores/me';
 
 const routes = [
   { path: '/', component: () => import('@/views/HomeView.vue'), meta: { requiresAuth: true, tabs: true } },
   { path: '/explorer', component: () => import('@/views/ExplorerView.vue'), meta: { requiresAuth: true, tabs: true } },
-  { path: '/creer', component: () => import('@/views/CreateTableView.vue'), meta: { requiresAuth: true, tabs: true } },
+  { path: '/creer', component: () => import('@/views/CreateTableView.vue'), meta: { requiresAuth: true, requiresOnboarded: true, tabs: true } },
   { path: '/messages', component: () => import('@/views/MessagesView.vue'), meta: { requiresAuth: true, tabs: true } },
   { path: '/messages/:id', component: () => import('@/views/MessagesView.vue'), meta: { requiresAuth: true } },
   { path: '/profil', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true, tabs: true } },
@@ -13,7 +14,7 @@ const routes = [
   {
     path: '/tables/:id/participer',
     component: () => import('@/views/ContributionView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresOnboarded: true },
   },
   {
     path: '/tables/:id/confirme',
@@ -43,6 +44,11 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: to.fullPath === '/' ? {} : { redirect: to.fullPath } };
   }
   if (to.meta.requiresGuest && signedIn) return '/';
+  if (to.meta.requiresOnboarded && signedIn) {
+    const meStore = useMeStore();
+    await meStore.load();
+    if (!meStore.isOnboarded) return '/profil';
+  }
   return true;
 });
 export default router;
