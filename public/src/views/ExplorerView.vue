@@ -25,7 +25,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePosition } from '@/composables/usePosition';
-import { listTables, suggestTables, suggestTablesWithAi } from '@/lib/api';
+import { listTables, suggestTables } from '@/lib/api';
 import {
   DIETARY_OPTIONS,
   formatDay,
@@ -55,11 +55,6 @@ const view = ref<'liste' | 'carte'>('liste');
 const selectedId = ref<string | null>(null);
 const suggestions = ref<Array<{ type: 'plat' | 'quartier' | 'ville'; value: string }>>([]);
 const suggestionsOuvertes = ref(false);
-const aiOuvert = ref(false);
-const aiQuery = ref('');
-const aiSuggestions = ref<string[]>([]);
-const aiLoading = ref(false);
-const aiErreur = ref<string | null>(null);
 
 const tables = ref<Table[]>([]);
 const total = ref(0);
@@ -185,29 +180,6 @@ function choisirSuggestion(suggestion: { type: 'plat' | 'quartier' | 'ville'; va
   suggestionsOuvertes.value = false;
 }
 
-async function proposerAvecIa() {
-  const texte = aiQuery.value.trim();
-  if (texte.length < 2) return;
-  aiLoading.value = true;
-  aiErreur.value = null;
-  try {
-    const resultat = await suggestTablesWithAi(texte);
-    aiSuggestions.value = resultat.dishes;
-  } catch (e) {
-    aiSuggestions.value = [];
-    aiErreur.value = e instanceof Error ? e.message : 'L’IA est indisponible pour le moment.';
-  } finally {
-    aiLoading.value = false;
-  }
-}
-
-function choisirSuggestionIa(dish: string) {
-  q.value = dish;
-  aiOuvert.value = false;
-  aiQuery.value = '';
-  aiSuggestions.value = [];
-}
-
 watch(q, () => {
   clearTimeout(minuteurSuggestion);
   minuteurSuggestion = setTimeout(() => void chargerSuggestions(), 250);
@@ -291,15 +263,6 @@ onMounted(() => {
       <!-- Filtres rapides : créneau, régime et rayon. Les pastilles se partagent
            toute la largeur disponible, comme sur la maquette. -->
       <div v-if="view === 'liste'" class="flex flex-wrap items-stretch gap-2">
-        <button
-          type="button"
-          class="flex grow items-center justify-center gap-1.5 rounded-full bg-terracotta/10 px-3 py-2.5 text-label-sm text-terracotta transition-colors"
-          aria-label="Proposer une envie avec l’IA"
-          @click="aiOuvert = true"
-        >
-          <span aria-hidden="true">✨</span>
-          Envie
-        </button>
         <button
           type="button"
           class="flex grow items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-label-sm transition-colors"
@@ -470,7 +433,7 @@ onMounted(() => {
 
       <!-- Carte -->
       <template v-else>
-        <div class="relative -mx-5 -mb-6 flex-1 min-h-0 overflow-hidden">
+        <div class="relative -mx-5 -mb-6 flex-1 min-h-0 isolate overflow-hidden">
           <TablesMap
             :tables="tables"
             :center="center"
@@ -515,39 +478,6 @@ onMounted(() => {
         </div>
       </template>
     </div>
-
-    <!-- Envie : suggestions générées par l'IA -->
-    <Drawer v-model:open="aiOuvert">
-      <DrawerContent class="bg-creme">
-        <DrawerHeader class="app-pad text-left">
-          <DrawerTitle class="text-title-lg font-titres text-sauge">Quelle envie ?</DrawerTitle>
-        </DrawerHeader>
-        <div class="app-pad flex flex-col gap-3 pb-8">
-          <input
-            v-model="aiQuery"
-            type="text"
-            placeholder="Un repas d'hiver, réconfortant…"
-            class="h-12 w-full rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
-            @keydown.enter.prevent="proposerAvecIa"
-          />
-          <Button size="lg" class="w-full" :disabled="aiLoading || aiQuery.trim().length < 2" @click="proposerAvecIa">
-            {{ aiLoading ? 'Proposition…' : 'Proposer' }}
-          </Button>
-          <p v-if="aiErreur" class="text-body-sm text-terracotta">{{ aiErreur }}</p>
-          <div v-if="aiSuggestions.length" class="flex flex-wrap gap-2">
-            <button
-              v-for="dish in aiSuggestions"
-              :key="dish"
-              type="button"
-              class="rounded-full bg-sauge/10 px-3 py-2 text-label-md text-sauge-fonce"
-              @click="choisirSuggestionIa(dish)"
-            >
-              {{ dish }}
-            </button>
-          </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
 
     <!-- Filtres : régime et rayon -->
     <Drawer v-model:open="filtresOuverts">
