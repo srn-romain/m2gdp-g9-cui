@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 import AppBar from '@/components/AppBar.vue';
 import DishPhoto from '@/components/DishPhoto.vue';
+import IngredientGlyph from '@/components/IngredientGlyph.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -213,7 +214,7 @@ onMounted(async () => {
               :key="`${ingredient.label}-${index}`"
               class="flex items-center gap-3 rounded-xl border border-ardoise/10 py-2 pr-3 pl-2"
             >
-              <DishPhoto :dish-name="ingredient.label" :size="40" rounded="rounded-full" />
+              <IngredientGlyph :label="ingredient.label" :size="40" />
               <span class="flex min-w-0 flex-1 flex-col">
                 <span class="text-body-md font-bold text-ardoise">{{ ingredient.label }}</span>
                 <span

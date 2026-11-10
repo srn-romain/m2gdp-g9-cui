@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 import AddressField from '@/components/AddressField.vue';
 import AppBar from '@/components/AppBar.vue';
-import DishPhoto from '@/components/DishPhoto.vue';
+import IngredientGlyph from '@/components/IngredientGlyph.vue';
 import Stepper from '@/components/Stepper.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -323,7 +323,7 @@ onMounted(async () => {
             :key="ingredient.id"
             class="flex items-center gap-3 rounded-2xl bg-surface p-2.5 shadow-[0_2px_10px_rgba(43,43,43,.06)]"
           >
-            <DishPhoto :dish-name="ingredient.label" :size="48" rounded="rounded-full" />
+            <IngredientGlyph :label="ingredient.label" :size="48" />
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="text-body-lg-strong leading-[20px] text-ardoise">
                 {{ ingredient.label }}

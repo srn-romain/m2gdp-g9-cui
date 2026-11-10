@@ -13,6 +13,7 @@ import illustration from '@/assets/bonjour.png';
 import AccentStroke from '@/components/AccentStroke.vue';
 import AppBar from '@/components/AppBar.vue';
 import DishPhoto from '@/components/DishPhoto.vue';
+import IngredientGlyph from '@/components/IngredientGlyph.vue';
 import MascotBubble from '@/components/MascotBubble.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -419,7 +420,7 @@ watch(tableId, (id) => {
               :key="contribution.id"
               class="flex items-center gap-3 rounded-xl bg-surface p-2"
             >
-              <DishPhoto :dish-name="contribution.label" :size="40" rounded="rounded-full" />
+              <IngredientGlyph :label="contribution.label" :size="40" />
               <span class="flex min-w-0 flex-1 flex-col">
                 <span class="truncate text-body-md text-ardoise">
                   <span class="font-bold">{{ contribution.label }}</span>
