@@ -87,21 +87,42 @@ aiRoutes.post('/table-suggestions', async (c) => {
   if (query.length < 2 || query.length > 200) {
     return apiError('VALIDATION_ERROR', 'query invalide.', { field: 'query' });
   }
+
+  // Catalogue des plats réellement proposés autour de l'utilisateur : l'IA ne
+  // doit suggérer que des plats qui existent dans la base, jamais en inventer.
+  const rows = await c.env.DB.prepare(
+    "SELECT DISTINCT dishName FROM tables WHERE status IN ('OPEN','FULL')",
+  ).all<{ dishName: string }>();
+  const catalogue = [...new Set((rows.results ?? []).map((r) => r.dishName.trim()).filter(Boolean))];
+  if (!catalogue.length) return c.json({ data: { dishes: [] } });
+
   const reponse = await generer(c, [
     {
       role: 'system',
       content:
-        'Tu es un assistant qui aide à trouver des repas partagés. À partir de la demande (envie, humeur, saison), propose 4 plats réalistes pour une tablée de quartier. Réponds UNIQUEMENT en JSON : {"dishes": ["plat 1", "plat 2", "plat 3", "plat 4"]}.',
+        'Tu es un assistant qui aide à trouver des repas partagés. Voici la liste exacte des plats proposés autour de l\'utilisateur : ' +
+        JSON.stringify(catalogue) +
+        '. À partir de la demande (envie, humeur, saison), choisis jusqu\'à 4 plats UNIQUEMENT dans cette liste, ceux qui correspondent le mieux. Réponds UNIQUEMENT en JSON : {"dishes": ["plat de la liste", ...]}. Recopie chaque nom exactement comme dans la liste, sans en inventer.',
     },
     { role: 'user', content: query },
   ]);
 
-  const repli = ['Ratatouille', 'Tajine de légumes', 'Soupe de potiron', 'Tartiflette'];
+  // Repli lexical quand l'IA ne répond pas : on rapproche les mots de la demande
+  // des noms de plats du catalogue.
+  const mots = query.toLowerCase().split(/[^a-z0-9à-ÿ]+/i).filter((m) => m.length > 2);
+  const repli = catalogue.filter((d) => mots.some((m) => d.toLowerCase().includes(m))).slice(0, 4);
   if (!reponse) return c.json({ data: { dishes: repli } });
 
   const parsed = extraireJson(reponse) as { dishes?: unknown } | null;
-  const dishes = Array.isArray(parsed?.dishes)
-    ? parsed.dishes.filter((d): d is string => typeof d === 'string').slice(0, 6)
-    : repli;
+  if (!Array.isArray(parsed?.dishes)) return c.json({ data: { dishes: repli } });
+
+  // On ne conserve que les noms réellement présents dans le catalogue (insensible
+  // à la casse), pour éviter que l'IA n'invente un plat.
+  const parNom = new Map(catalogue.map((d) => [d.toLowerCase(), d]));
+  const dishes = parsed.dishes
+    .filter((d): d is string => typeof d === 'string')
+    .map((d) => parNom.get(d.trim().toLowerCase()))
+    .filter((d): d is string => Boolean(d))
+    .slice(0, 6);
   return c.json({ data: { dishes: dishes.length ? dishes : repli } });
 });
