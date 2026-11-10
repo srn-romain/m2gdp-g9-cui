@@ -14,9 +14,9 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
 import { createTable, draftTableWithAi } from '@/lib/api';
-import { formatIngredientQuantity, fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
+import { DIETARY_OPTIONS, formatIngredientQuantity, fromDateTimeLocal, toDateTimeLocal } from '@/lib/format';
 import { CHAMP } from '@/lib/styles';
-import type { Coordinates, QuantityUnit } from '@/lib/types';
+import type { Coordinates, DietaryPreference, QuantityUnit } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
 
 const router = useRouter();
@@ -39,11 +39,18 @@ const time = ref(defaut.time);
 const lieu = ref('');
 const adresseChoisie = ref<Adresse | null>(null);
 const seatsTotal = ref(4);
-const isVegetarian = ref(false);
+const dietaryTags = ref<DietaryPreference[]>([]);
 const hasAllergenNotice = ref(false);
 const submitting = ref(false);
 const step = ref<1 | 2>(1);
 const aiLoading = ref(false);
+
+function basculerDiet(valeur: DietaryPreference) {
+  const ensemble = new Set(dietaryTags.value);
+  if (ensemble.has(valeur)) ensemble.delete(valeur);
+  else ensemble.add(valeur);
+  dietaryTags.value = [...ensemble];
+}
 
 /** Ingrédients que l'hôte propose d'apporter : liste de courses de la tablée. */
 interface IngredientPropose {
@@ -177,7 +184,7 @@ async function submit() {
       description: description.value.trim() || undefined,
       startsAt: startsAt.value,
       seatsTotal: seatsTotal.value,
-      isVegetarian: isVegetarian.value,
+      dietaryTags: dietaryTags.value.length ? dietaryTags.value : undefined,
       hasAllergenNotice: hasAllergenNotice.value,
       wantedContributions: ingredients.value.length
         ? ingredients.value.map(({ label, quantity, unit }) => ({ label, quantity, unit }))
@@ -402,10 +409,29 @@ onMounted(async () => {
           Ajouter un ingrédient
         </Button>
 
-        <Field v-if="step === 2" orientation="horizontal" class="items-center justify-between">
-          <FieldLabel for="table-vegetarian">Plat végétarien</FieldLabel>
-          <Switch id="table-vegetarian" v-model="isVegetarian" />
-        </Field>
+        <div v-if="step === 2" class="flex flex-col gap-2">
+          <span class="text-label-md font-medium text-ardoise">Régimes alimentaires</span>
+          <p class="text-micro text-secondaire">
+            Indique les régimes auxquels ton plat convient.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="option in DIETARY_OPTIONS"
+              :key="option.value"
+              type="button"
+              class="rounded-full px-3 py-2 text-label-sm transition-colors"
+              :class="
+                dietaryTags.includes(option.value)
+                  ? 'bg-sauge text-creme'
+                  : 'bg-sauge/10 text-sauge-fonce'
+              "
+              :aria-pressed="dietaryTags.includes(option.value)"
+              @click="basculerDiet(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
         <Field v-if="step === 2" orientation="horizontal" class="items-center justify-between">
           <FieldLabel for="table-allergens">Allergènes indiqués</FieldLabel>
           <Switch id="table-allergens" v-model="hasAllergenNotice" />

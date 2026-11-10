@@ -26,6 +26,7 @@ export interface TableRow {
   id: string; hostId: string; dishName: string; description: string | null;
   startsAt: string; durationMinutes: number; seatsTotal: number;
   visibility: string; status: string; isVegetarian: number; hasAllergenNotice: number;
+  dietaryTags: string | null;
   neighborhood: string; city: string; postalCode: string | null;
   latitude: number; longitude: number; addressLine: string | null; createdAt: string;
   wantedContributions: string | null;
@@ -46,6 +47,25 @@ export function parseWantedContributions(raw: unknown): WantedContribution[] {
   } catch {
     return [];
   }
+}
+
+/** Régimes alimentaires d'une tablée, stockés en JSON : « VEGETARIAN », « HALAL »… */
+export function parseDietaryTags(raw: unknown): string[] {
+  if (typeof raw !== 'string' || !raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((d): d is string => typeof d === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/** Régimes effectifs, en incluant les anciennes lignes qui n'ont que `isVegetarian`. */
+export function effectiveDietaryTags(row: TableRow): Set<string> {
+  const tags = new Set(parseDietaryTags(row.dietaryTags));
+  if (row.isVegetarian) tags.add('VEGETARIAN');
+  return tags;
 }
 
 interface UserRow {
@@ -153,6 +173,7 @@ export async function toTableJson(db: D1Database, row: TableRow, viewerUserId: s
   }
   const exact = isParticipant;
   const host = await userSummary(db, row.hostId);
+  const dietaryTags = [...effectiveDietaryTags(row)];
   return {
     id: row.id, hostId: row.hostId, dishName: row.dishName, description: row.description,
     // Titre dérivé : « {dishName} chez {host.firstName} », jamais stocké.
@@ -161,7 +182,9 @@ export async function toTableJson(db: D1Database, row: TableRow, viewerUserId: s
     title: host?.firstName ? `${row.dishName} chez ${host.firstName}` : row.dishName,
     startsAt: row.startsAt, durationMinutes: row.durationMinutes,
     seatsTotal: row.seatsTotal, seatsAvailable, visibility: row.visibility, status,
-    isVegetarian: !!row.isVegetarian, hasAllergenNotice: !!row.hasAllergenNotice,
+    isVegetarian: dietaryTags.includes('VEGETARIAN'),
+    dietaryTags,
+    hasAllergenNotice: !!row.hasAllergenNotice,
     host,
     location: {
       neighborhood: row.neighborhood, city: row.city, postalCode: row.postalCode,

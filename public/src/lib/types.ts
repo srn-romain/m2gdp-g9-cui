@@ -146,6 +146,7 @@ export interface Table {
   visibility: Visibility;
   status: TableStatus;
   isVegetarian: boolean;
+  dietaryTags: DietaryPreference[];
   hasAllergenNotice: boolean;
   host?: UserSummary;
   location: Location;
@@ -165,6 +166,7 @@ export interface TableCreate {
   seatsTotal: number;
   visibility?: Visibility;
   isVegetarian?: boolean;
+  dietaryTags?: DietaryPreference[];
   hasAllergenNotice?: boolean;
   wantedContributions?: WantedContribution[];
   location: Location;

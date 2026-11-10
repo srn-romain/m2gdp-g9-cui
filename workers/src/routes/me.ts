@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { apiError } from '../errors';
 import { parsePagination, pageOf } from '../pagination';
 import { requireAuth } from '../auth';
-import { isPassed, nowIso, parseWantedContributions, round300m, type TableRow } from '../models';
+import { effectiveDietaryTags, isPassed, nowIso, parseWantedContributions, round300m, type TableRow } from '../models';
 
 const DIETS = ['VEGETARIAN','VEGAN','NO_PORK','NO_GLUTEN','NO_LACTOSE','HALAL','KOSHER','NO_NUTS'];
 
@@ -143,12 +143,15 @@ meRoutes.get('/tables', async (c) => {
         contribution: own ? { id: own.id, label: own.label, quantity: own.quantity == null ? null : Number(own.quantity), unit: own.unit, category: own.category, status: own.status } : null,
       };
     }
+    const dietaryTags = [...effectiveDietaryTags(t)];
     return {
       id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
       title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
       startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,
       seatsAvailable, visibility: t.visibility, status,
-      isVegetarian: !!t.isVegetarian, hasAllergenNotice: !!t.hasAllergenNotice,
+      isVegetarian: dietaryTags.includes('VEGETARIAN'),
+      dietaryTags,
+      hasAllergenNotice: !!t.hasAllergenNotice,
       host,
       location: {
         neighborhood: t.neighborhood, city: t.city, postalCode: t.postalCode,

@@ -3,7 +3,17 @@ import type { Env } from '../env';
 import { apiError } from '../errors';
 import { parsePagination, pageOf } from '../pagination';
 import { requireAuth } from '../auth';
-import { isPassed, newId, nowIso, parseWantedContributions, round300m, toTableJson, type TableRow } from '../models';
+import {
+  effectiveDietaryTags,
+  isPassed,
+  newId,
+  nowIso,
+  parseDietaryTags,
+  parseWantedContributions,
+  round300m,
+  toTableJson,
+  type TableRow,
+} from '../models';
 
 export const tablesRoutes = new Hono<{ Bindings: Env }>();
 
@@ -52,11 +62,11 @@ tablesRoutes.get('/', async (c) => {
   if (!['distance', 'startsAt', 'seatsAvailable'].includes(sortBy)) return apiError('VALIDATION_ERROR', 'sortBy invalide.');
   if (sortBy === 'distance' && lat == null) return apiError('VALIDATION_ERROR', 'sortBy=distance exige lat+lng.');
   const vegetarianOnly = url.searchParams.get('vegetarianOnly') === 'true';
-  // Paramètre `dietary` de l'OpenAPI (répétable). Seul le végétarien est stocké
-  // par tablée (colonne isVegetarian) : c'est le seul régime filtrable aujourd'hui.
+  // Paramètre `dietary` de l'OpenAPI (répétable) : cumule les régimes demandés.
   const dietary = url.searchParams.getAll('dietary');
   if (dietary.some((d) => !DIETS.includes(d))) return apiError('VALIDATION_ERROR', 'dietary invalide.', { field: 'dietary' });
-  const veutVegetarien = vegetarianOnly || dietary.includes('VEGETARIAN');
+  const regimesDemandes = new Set(dietary);
+  if (vegetarianOnly) regimesDemandes.add('VEGETARIAN');
   const startsAfter = url.searchParams.get('startsAfter');
   const startsBefore = url.searchParams.get('startsBefore');
   const { page, pageSize } = parsePagination(url);
@@ -64,7 +74,10 @@ tablesRoutes.get('/', async (c) => {
   const candidates: TableRow[] = [];
   for (const t of rows.results ?? []) {
     if (isPassed(t.startsAt, t.durationMinutes)) continue;
-    if (veutVegetarien && !t.isVegetarian) continue;
+    if (regimesDemandes.size) {
+      const effectifs = effectiveDietaryTags(t);
+      if (![...regimesDemandes].every((d) => effectifs.has(d))) continue;
+    }
     if (startsAfter && t.startsAt < startsAfter) continue;
     if (startsBefore && t.startsAt >= startsBefore) continue;
     if (q && !(t.dishName.toLowerCase().includes(q.toLowerCase()) || t.neighborhood.toLowerCase().includes(q.toLowerCase()))) continue;
@@ -133,12 +146,15 @@ tablesRoutes.get('/', async (c) => {
         contribution: own ? { id: own.id, label: own.label, quantity: own.quantity == null ? null : Number(own.quantity), unit: own.unit, category: own.category, status: own.status } : null,
       };
     }
+    const dietaryTags = [...effectiveDietaryTags(t)];
     items.push({
       id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
       title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
       startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,
       seatsAvailable, visibility: t.visibility, status,
-      isVegetarian: !!t.isVegetarian, hasAllergenNotice: !!t.hasAllergenNotice,
+      isVegetarian: dietaryTags.includes('VEGETARIAN'),
+      dietaryTags,
+      hasAllergenNotice: !!t.hasAllergenNotice,
       host,
       location: {
         neighborhood: t.neighborhood, city: t.city, postalCode: t.postalCode,
@@ -180,14 +196,25 @@ tablesRoutes.post('/', async (c) => {
   if (!['PUBLIC', 'PRIVATE'].includes(vis)) return apiError('VALIDATION_ERROR', 'visibility invalide.');
   const wanted = parseWanted(b['wantedContributions']);
   if (!wanted) return apiError('VALIDATION_ERROR', 'wantedContributions invalide.', { field: 'wantedContributions' });
+  // Régimes alimentaires de la tablée : liste bornée, dédoublonnée.
+  const brutDietary = b['dietaryTags'] ?? (b['isVegetarian'] ? ['VEGETARIAN'] : []);
+  if (
+    !Array.isArray(brutDietary) ||
+    brutDietary.length > DIETS.length ||
+    !brutDietary.every((d) => DIETS.includes(d as string))
+  ) {
+    return apiError('VALIDATION_ERROR', 'dietaryTags invalide.', { field: 'dietaryTags' });
+  }
+  const dietaryTags = [...new Set(brutDietary as string[])];
+  const isVegetarian = dietaryTags.includes('VEGETARIAN') ? 1 : 0;
   const id = newId(), now = nowIso(), partId = newId();
   // R1 : tablee + participation HOST CONFIRMED dans la meme transaction.
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO tables (id, hostId, dishName, description, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tables (id, hostId, dishName, description, startsAt, durationMinutes, seatsTotal, visibility, status, isVegetarian, hasAllergenNotice, dietaryTags, neighborhood, city, postalCode, latitude, longitude, addressLine, wantedContributions, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(id, auth.userId, (dish as string).trim(), (b['description'] as string) ?? null, new Date(String(b['startsAt'])).toISOString(),
-      Number(b['durationMinutes'] ?? 120), seats, vis, b['isVegetarian'] ? 1 : 0, b['hasAllergenNotice'] ? 1 : 0,
+      Number(b['durationMinutes'] ?? 120), seats, vis, isVegetarian, b['hasAllergenNotice'] ? 1 : 0, JSON.stringify(dietaryTags),
       loc['neighborhood'], loc['city'], (loc['postalCode'] as string) ?? null,
       co.latitude, co.longitude, (loc['addressLine'] as string) ?? null, JSON.stringify(wanted), now),
     c.env.DB.prepare(

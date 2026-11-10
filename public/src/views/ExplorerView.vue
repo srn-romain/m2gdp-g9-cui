@@ -3,7 +3,6 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  Leaf,
   List as ListIcon,
   Map as MapIcon,
   MapPin,
@@ -25,7 +24,6 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
 import { usePosition } from '@/composables/usePosition';
 import { listTables, suggestTables, suggestTablesWithAi } from '@/lib/api';
 import {
@@ -74,7 +72,6 @@ const center = computed(() => ({
   lng: position.longitude.value ?? 4.8467,
 }));
 const selected = computed(() => tables.value.find((t) => t.id === selectedId.value) ?? null);
-const vegetarien = computed(() => regimes.value.includes('VEGETARIAN'));
 const aDesFiltres = computed(
   () => ceSoir.value || regimes.value.length > 0 || q.value.trim().length > 1,
 );
@@ -82,15 +79,6 @@ const nbFiltres = computed(
   () => regimes.value.length + (ceSoir.value ? 1 : 0) + (radiusKm.value !== RAYON_DEFAUT ? 1 : 0),
 );
 const compteTables = computed(() => `${total.value} ${total.value > 1 ? 'tablées' : 'tablée'}`);
-
-/** Suggestion du moment : un plat de saison, ignorable et cliquable. */
-const suggestionSaison = computed(() => {
-  const mois = new Date().getMonth();
-  if (mois >= 2 && mois <= 4) return 'Ratatouille';
-  if (mois >= 5 && mois <= 7) return 'Salade estivale';
-  if (mois >= 8 && mois <= 10) return 'Soupe de potiron';
-  return 'Tartiflette';
-});
 
 /** « Ce soir » : de 18 h à 2 h du matin. */
 function fenetreCeSoir(): { startsAfter?: string; startsBefore?: string } {
@@ -306,15 +294,6 @@ onMounted(() => {
         <button
           type="button"
           class="flex grow items-center justify-center gap-1.5 rounded-full bg-terracotta/10 px-3 py-2.5 text-label-sm text-terracotta transition-colors"
-          aria-label="Appliquer la suggestion de saison"
-          @click="q = suggestionSaison"
-        >
-          <span aria-hidden="true">🍂</span>
-          {{ suggestionSaison }}
-        </button>
-        <button
-          type="button"
-          class="flex grow items-center justify-center gap-1.5 rounded-full bg-terracotta/10 px-3 py-2.5 text-label-sm text-terracotta transition-colors"
           aria-label="Proposer une envie avec l’IA"
           @click="aiOuvert = true"
         >
@@ -335,17 +314,6 @@ onMounted(() => {
             :class="ceSoir ? 'text-creme' : 'text-sauge/70'"
             :stroke-width="2.5"
           />
-        </button>
-
-        <button
-          type="button"
-          class="flex grow items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-label-sm transition-colors"
-          :class="vegetarien ? 'bg-sauge text-creme' : 'bg-sauge/10 text-sauge-fonce'"
-          :aria-pressed="vegetarien"
-          @click="basculerRegime('VEGETARIAN')"
-        >
-          <Leaf class="size-3.5" :class="vegetarien ? 'text-creme' : 'text-sauge'" :stroke-width="2" />
-          Végétarien
         </button>
 
         <button
@@ -607,18 +575,23 @@ onMounted(() => {
 
           <section class="flex flex-col gap-2">
             <h3 class="mb-2 text-body-lg-strong text-ardoise">Régime alimentaire</h3>
-            <label class="flex items-center justify-between gap-3 rounded-xl px-1 py-3">
-              <span class="text-body-md text-ardoise">{{ DIETARY_OPTIONS[0].label }}</span>
-              <Switch
-                :model-value="regimes.includes('VEGETARIAN')"
-                @update:model-value="basculerRegime('VEGETARIAN')"
-              />
-            </label>
-            <!-- Le modèle ne stocke que « plat végétarien » par tablée : les autres
-                 régimes (vegan, sans porc, halal…) attendent un champ dédié. -->
-            <p class="text-micro text-secondaire">
-              Les autres régimes (vegan, sans porc, halal…) arrivent bientôt.
-            </p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in DIETARY_OPTIONS"
+                :key="option.value"
+                type="button"
+                class="rounded-full px-3 py-2 text-label-sm transition-colors"
+                :class="
+                  regimes.includes(option.value)
+                    ? 'bg-sauge text-creme'
+                    : 'bg-sauge/10 text-sauge-fonce'
+                "
+                :aria-pressed="regimes.includes(option.value)"
+                @click="basculerRegime(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
           </section>
 
           <Button size="lg" class="w-full" @click="filtresOuverts = false">

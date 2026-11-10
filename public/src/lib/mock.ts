@@ -3,7 +3,7 @@
  * Permet de travailler les écrans sans Supabase ni API, et de faire relire le
  * design sur un téléphone. À laisser désactivé en production.
  */
-import type { Message, Table, User } from './types';
+import type { DietaryPreference, Message, Table, User } from './types';
 
 export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -74,6 +74,7 @@ export const DEMO_TABLE_GRATIN: Table = {
   visibility: 'PUBLIC',
   status: 'OPEN',
   isVegetarian: true,
+  dietaryTags: ['VEGETARIAN'],
   hasAllergenNotice: true,
   host: personne('demo-leonie', 'Léonie'),
   location: {
@@ -115,6 +116,7 @@ export const DEMO_TABLE_RISOTTO: Table = {
   visibility: 'PUBLIC',
   status: 'OPEN',
   isVegetarian: true,
+  dietaryTags: ['VEGETARIAN'],
   hasAllergenNotice: false,
   host: personne('demo-camille', 'Camille'),
   location: { neighborhood: 'Lyon 7e', city: 'Lyon', coordinates: { latitude: 45.7505, longitude: 4.8477 } },
@@ -148,6 +150,7 @@ export const DEMO_TABLE_SOUPE: Table = {
   visibility: 'PUBLIC',
   status: 'PASSED',
   isVegetarian: true,
+  dietaryTags: ['VEGETARIAN', 'VEGAN'],
   hasAllergenNotice: false,
   host: personne('demo-sarah', 'Sarah'),
   location: { neighborhood: 'Lyon 3e', city: 'Lyon', coordinates: { latitude: 45.7625, longitude: 4.8522 } },
@@ -177,6 +180,7 @@ export const DEMO_TABLE_LIBRE: Table = {
   visibility: 'PUBLIC',
   status: 'OPEN',
   isVegetarian: false,
+  dietaryTags: [],
   hasAllergenNotice: false,
   host: personne('demo-pierre', 'Pierre'),
   location: {
@@ -217,9 +221,13 @@ export function demoQueryTables(params: {
   }
   if (params.startsAfter) list = list.filter((t) => t.startsAt >= params.startsAfter!);
   if (params.startsBefore) list = list.filter((t) => t.startsAt <= params.startsBefore!);
-  // La démo ne porte que le drapeau végétarien : les autres régimes sont ignorés.
-  if (params.vegetarianOnly || params.dietary?.includes('VEGETARIAN')) {
-    list = list.filter((t) => t.isVegetarian);
+  // Les régimes demandés doivent tous être couverts par la tablée.
+  const regimes = new Set<string>(params.dietary ?? []);
+  if (params.vegetarianOnly) regimes.add('VEGETARIAN');
+  if (regimes.size) {
+    list = list.filter((t) =>
+      [...regimes].every((d) => (t.dietaryTags as DietaryPreference[]).includes(d as DietaryPreference)),
+    );
   }
   if (params.radiusKm) {
     const max = params.radiusKm * 1000;
