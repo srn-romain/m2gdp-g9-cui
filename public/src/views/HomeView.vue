@@ -44,8 +44,6 @@ const visibleUpcoming = computed(() =>
 const visiblePast = computed(() => (showAllPast.value ? past.value : past.value.slice(0, 1)));
 /** Sans passé ni à-venir, on présente l'écran vide de la maquette. */
 const isEmpty = computed(() => !upcoming.value.length && !past.value.length);
-/** Écran vide : la maquette centre le salut et met la mascotte en grand dessous. */
-const vueVide = computed(() => isEmpty.value && !loading.value);
 
 onMounted(async () => {
   loading.value = true;
@@ -94,25 +92,16 @@ onMounted(async () => {
         <WeatherPill :coordinates="meStore.profile?.coordinates" :city="meStore.profile?.city ?? ''" />
       </div>
 
-      <!-- Salut : centré quand il n'y a rien à montrer ; sinon sur une ligne, avec la
-           réserve de largeur de la mascotte (pr) pour qu'un prénom long passe dessous
-           au lieu de la percuter. -->
+      <!-- Salut : toujours sur une ligne, avec la réserve de largeur de la mascotte
+           (pr) pour qu'un prénom long passe dessous au lieu de la percuter. -->
       <div class="relative mt-3">
-        <h1
-          v-if="vueVide"
-          class="flex flex-wrap items-center justify-center gap-2 text-center text-display-lg font-titres text-sauge-fonce"
-        >
-          Bonjour {{ firstName }}&nbsp;!
-          <AccentStroke :height="11" class="mb-1.5" />
-        </h1>
-        <h1 v-else class="pr-[5.5rem] text-display-lg font-titres text-sauge-fonce">
+        <h1 class="pr-[5.5rem] text-display-lg font-titres text-sauge-fonce">
           <span class="flex items-center gap-2">
             Bonjour {{ firstName }}&nbsp;!
             <AccentStroke :height="11" class="mb-1.5" />
           </span>
         </h1>
         <img
-          v-if="!vueVide"
           :src="illustration"
           alt=""
           class="absolute top-1/2 right-0 w-[5.5rem] -translate-y-1/2"
@@ -163,8 +152,6 @@ onMounted(async () => {
 
       <!-- Aucune tablée -->
       <template v-else-if="isEmpty">
-        <img :src="illustration" alt="" class="mx-auto w-72 max-w-full" />
-
         <h2
           class="flex flex-wrap items-center justify-center gap-2 text-center text-display-lg font-titres text-sauge-fonce"
         >
