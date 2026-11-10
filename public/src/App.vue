@@ -15,6 +15,6 @@ const showTabs = computed(() => route.meta.tabs === true);
       <RouterView />
     </main>
     <BottomNav v-if="showTabs" />
-    <Toaster position="top-center" />
+    <Toaster position="top-center" :duration="6000" :offset="0" :mobile-offset="0" />
   </div>
 </template>
