@@ -24,7 +24,6 @@ const routes = [
   { path: '/login', component: () => import('@/views/LoginView.vue'), meta: { requiresGuest: true } },
   { path: '/bienvenue', component: () => import('@/views/RegisterView.vue'), meta: { requiresGuest: true } },
   { path: '/email-sent', component: () => import('@/views/EmailSentView.vue') },
-  { path: '/auth/finish', component: () => import('@/views/AuthFinishView.vue') },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 

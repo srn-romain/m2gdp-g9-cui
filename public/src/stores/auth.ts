@@ -15,40 +15,52 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(true);
   const ready = ref(false);
 
-  function actionUrl(): string {
-    // Le lien magique doit revenir sur le domaine réellement utilisé (dev, preview ou prod).
-    return `${window.location.origin}/auth/finish`;
-  }
-
-  /** Écran « Bon retour ! » : envoie un lien magique via Supabase Auth. */
-  async function sendMagicLink(email: string) {
-    // Mode démo : la session s'ouvre immédiatement, sans lien par e-mail.
+  /** Envoie un code OTP à 6 chiffres par e-mail via Supabase Auth. */
+  async function sendOtp(email: string) {
+    // Mode démo : la session s'ouvre immédiatement, sans code par e-mail.
     if (DEMO_MODE) {
       await new Promise((resolve) => setTimeout(resolve, 400));
       user.value = { id: DEMO_USER.id, email } as SupabaseUser;
       window.localStorage.setItem(CLE_SESSION_DEMO, email);
       return;
     }
-    // « sign in with OTP » envoie un Magic Link par défaut. La réponse ne révèle pas
+    // « sign in with OTP » envoie un code à 6 chiffres dès que le template d'e-mail
+    // contient {{ .Token }} au lieu du lien de confirmation. La réponse ne révèle pas
     // si l'adresse est connue, ce qui évite d'énumérer les comptes.
-    // Source : https://supabase.com/docs/guides/auth/auth-email-passwordless#signing-in-with-magic-link
+    // Source : https://supabase.com/docs/guides/auth/auth-email-passwordless#with-otp
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: actionUrl(), shouldCreateUser: true },
+      options: { shouldCreateUser: true },
     });
     if (error) throw error;
   }
 
-  async function finishMagicLink() {
+  /** Vérifie le code OTP et ouvre la session Supabase correspondante. */
+  async function verifyOtpCode(email: string, code: string) {
     if (DEMO_MODE) return;
-    // Le lien magique ramène avec la session dans l'URL ; detectSessionInUrl la
-    // consomme automatiquement. getSession() confirme l'état courant sans redéclencher
-    // de navigation.
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) throw new Error('Lien invalide.');
-    user.value = data.session.user;
+    const normalise = email.trim().toLowerCase();
+    const token = code.trim();
+    // Un même flux sert la connexion et l'inscription. Selon que Supabase considère
+    // l'utilisateur comme existant ou nouveau, le code est typé 'email' ou 'signup'.
+    // On essaie les deux pour absorber cette différence sans dérouter l'utilisateur.
+    let session: { user: SupabaseUser } | null = null;
+    let derniereErreur: Error | null = null;
+    for (const type of ['email', 'signup'] as const) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: normalise,
+        token,
+        type,
+      });
+      if (!error && data.session) {
+        session = data.session;
+        break;
+      }
+      if (error) derniereErreur = new Error(error.message);
+    }
+    if (!session) throw derniereErreur ?? new Error('Code invalide.');
+    user.value = session.user;
     isNewUser.value =
-      data.session.user.created_at === data.session.user.last_sign_in_at;
+      session.user.created_at === session.user.last_sign_in_at;
   }
 
   async function logout() {
@@ -113,6 +125,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, isNewUser, loading, ready,
-    sendMagicLink, finishMagicLink, logout, initAuthListener, getToken, waitForAuth,
+    sendOtp, verifyOtpCode, logout, initAuthListener, getToken, waitForAuth,
   };
 });

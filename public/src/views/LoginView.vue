@@ -26,7 +26,7 @@ async function submit() {
   }
   loading.value = true;
   try {
-    await authStore.sendMagicLink(value);
+    await authStore.sendOtp(value);
     // En démo la session est déjà ouverte : inutile de passer par la boîte mail.
     await router.push(DEMO_MODE ? { path: '/' } : { path: '/email-sent', query: { email: value } });
   } catch (e) {
@@ -68,7 +68,7 @@ async function submit() {
       </FieldGroup>
 
       <Button type="submit" size="lg" class="mt-3 w-full" :disabled="loading">
-        {{ loading ? 'Envoi…' : 'Recevoir mon lien magique' }}
+        {{ loading ? 'Envoi…' : 'Recevoir mon code' }}
         <ChevronRight data-icon="inline-end" />
       </Button>
 
