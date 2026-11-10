@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Search } from '@lucide/vue';
+import { ChevronDown, ChevronRight, ChevronUp, Search } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import illustration from '@/assets/bonjour.png';
 import AccentStroke from '@/components/AccentStroke.vue';
@@ -184,7 +184,8 @@ onMounted(async () => {
                 @click="showAllUpcoming = !showAllUpcoming"
               >
                 {{ showAllUpcoming ? 'Réduire' : `Voir tout (${upcoming.length})` }}
-                <ChevronRight class="size-3.5" :stroke-width="2.25" />
+                <ChevronDown v-if="!showAllUpcoming" class="size-3.5" :stroke-width="2.25" />
+                <ChevronUp v-else class="size-3.5" :stroke-width="2.25" />
               </button>
             </template>
           </SectionHeading>
@@ -208,7 +209,8 @@ onMounted(async () => {
                 @click="showAllPast = !showAllPast"
               >
                 {{ showAllPast ? 'Réduire' : `Voir tout (${past.length})` }}
-                <ChevronRight class="size-3.5" :stroke-width="2.25" />
+                <ChevronDown v-if="!showAllPast" class="size-3.5" :stroke-width="2.25" />
+                <ChevronUp v-else class="size-3.5" :stroke-width="2.25" />
               </button>
             </template>
           </SectionHeading>
