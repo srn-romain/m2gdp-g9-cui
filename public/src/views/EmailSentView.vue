@@ -60,8 +60,8 @@ async function applySignupDraft(): Promise<boolean> {
 
 async function verify() {
   const valeur = code.value.trim();
-  if (!/^\d{6}$/.test(valeur)) {
-    toast.error('000000');
+  if (!/^\d{6,10}$/.test(valeur)) {
+    toast.error('Entre le code reçu par e-mail.');
     return;
   }
   if (!email.value) {
@@ -124,7 +124,7 @@ async function resend() {
           v-model="code"
           inputmode="numeric"
           autocomplete="one-time-code"
-          maxlength="6"
+          maxlength="10"
           placeholder="000000"
           class="text-center font-mono text-title-lg tracking-[0.5em]"
         />
