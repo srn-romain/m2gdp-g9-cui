@@ -246,8 +246,6 @@ onMounted(async () => {
 
         <MascotBubble text="Tout est au même endroit !" :image="illustration" :size="104" />
 
-        <InstallAppCard />
-
         <nav class="flex flex-col">
           <RouterLink
             to="/"
@@ -306,6 +304,8 @@ onMounted(async () => {
             <ChevronRight class="size-4 text-secondaire" />
           </button>
         </nav>
+
+        <InstallAppCard />
 
         <Button variant="ghost" size="default" class="mt-auto w-full justify-start" @click="logout">
           <LogOut data-icon="inline-start" />
