@@ -154,12 +154,21 @@ async function enrichirAvecIa() {
     if (draft.description) description.value = draft.description;
     if (draft.seatsTotal) seatsTotal.value = Math.min(30, Math.max(1, draft.seatsTotal));
     if (Array.isArray(draft.wantedContributions)) {
-      ingredients.value = draft.wantedContributions.map((w, index) => ({
-        id: index + 1,
-        label: w.label,
-        quantity: typeof w.quantity === 'number' ? w.quantity : undefined,
-        unit: (w.unit as QuantityUnit | undefined) ?? undefined,
-      }));
+      const unitesValides = new Set<string>(['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION']);
+      ingredients.value = draft.wantedContributions
+        .filter((w) => typeof w.label === 'string' && w.label.trim())
+        .map((w, index) => ({
+          id: index + 1,
+          label: w.label.trim(),
+          quantity:
+            typeof w.quantity === 'number' && Number.isFinite(w.quantity) && w.quantity > 0
+              ? w.quantity
+              : undefined,
+          unit:
+            typeof w.unit === 'string' && unitesValides.has(w.unit.toUpperCase())
+              ? (w.unit.toUpperCase() as QuantityUnit)
+              : undefined,
+        }));
       prochainId = ingredients.value.length + 1;
     }
     toast.success('Brouillon proposé, ajuste si besoin.');

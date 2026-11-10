@@ -5,6 +5,40 @@ import { requireAuth } from '../auth';
 
 // Choix documenté dans docs/feedback.md : Workers AI, modèle léger et rapide.
 const MODELE = '@cf/meta/llama-3.2-3b-instruct';
+const UNITES = ['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION'];
+const ALIAS_UNITES: Record<string, string> = {
+  kg: 'KG', kilo: 'KG', kilogramme: 'KG', kilogrammes: 'KG',
+  g: 'G', gramme: 'G', grammes: 'G',
+  l: 'L', litre: 'L', litres: 'L',
+  cl: 'CL', centilitre: 'CL', centilitres: 'CL',
+  unit: 'UNIT', unite: 'UNIT', unité: 'UNIT', piece: 'UNIT', pièce: 'UNIT', pieces: 'UNIT', pièces: 'UNIT',
+  bouteille: 'UNIT', boite: 'UNIT', boîte: 'UNIT', pot: 'UNIT', sachet: 'UNIT', paquet: 'UNIT', barquette: 'UNIT',
+  portion: 'PORTION', part: 'PORTION',
+};
+
+function normaliserUnite(u: unknown): string | null {
+  if (typeof u !== 'string') return null;
+  const brut = u.trim();
+  if (UNITES.includes(brut.toUpperCase())) return brut.toUpperCase();
+  return ALIAS_UNITES[brut.toLowerCase()] ?? null;
+}
+
+function normaliserWanted(input: unknown): Array<{ label: string; quantity: number | null; unit: string | null }> {
+  if (!Array.isArray(input)) return [{ label: 'Ingrédient', quantity: 1, unit: 'UNIT' }];
+  const items: Array<{ label: string; quantity: number | null; unit: string | null }> = [];
+  for (const brut of input.slice(0, 20)) {
+    const o = (brut ?? {}) as Record<string, unknown>;
+    const label = typeof o?.['label'] === 'string' ? o['label'].trim() : '';
+    if (!label) continue;
+    const q = o?.['quantity'] == null ? null : Number(o['quantity']);
+    items.push({
+      label: label.slice(0, 120),
+      quantity: q != null && Number.isFinite(q) && q > 0 ? q : null,
+      unit: normaliserUnite(o?.['unit']),
+    });
+  }
+  return items.length ? items : [{ label: 'Ingrédient', quantity: 1, unit: 'UNIT' }];
+}
 
 export const aiRoutes = new Hono<{ Bindings: Env }>();
 
@@ -67,7 +101,7 @@ aiRoutes.post('/table-draft', async (c) => {
   }
 
   const parsed = extraireJson(reponse) as Record<string, unknown> | null;
-  const wanted = Array.isArray(parsed?.wantedContributions) ? parsed.wantedContributions : [{ label: 'Ingrédient', quantity: 1, unit: 'UNIT' }];
+  const wanted = normaliserWanted(parsed?.wantedContributions);
   return c.json({
     data: {
       dishName: typeof parsed?.dishName === 'string' ? parsed.dishName : description.slice(0, 60),
