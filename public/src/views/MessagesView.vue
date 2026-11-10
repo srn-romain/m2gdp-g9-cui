@@ -310,17 +310,17 @@ watch(tableId, (id) => {
     <RouterLink
       v-if="table"
       :to="`/tables/${tableId}`"
-      class="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-sauge/10 px-3 py-2 text-micro text-sauge-fonce"
+      class="mx-4 mb-2 flex items-center gap-2 rounded-2xl border border-ardoise/10 bg-surface px-3 py-2 text-body-sm text-ardoise"
     >
-      <span class="shrink-0">📍</span>
       <span class="min-w-0 flex-1">
-        <span class="font-semibold">{{ formatDayTime(table.startsAt) }} · {{ table.location.neighborhood }}</span>
+        <span class="font-semibold text-sauge-fonce">
+          {{ formatDayTime(table.startsAt) }} · {{ table.location.neighborhood }}
+        </span>
         <template v-if="rappelApports.length">
-          <br />
-          À apporter : {{ rappelApports.join(' · ') }}
+          · À apporter : {{ rappelApports.join(', ') }}
         </template>
       </span>
-      <ChevronRight class="size-3.5 shrink-0" :stroke-width="2.25" />
+      <ChevronRight class="size-4 shrink-0 text-secondaire" :stroke-width="2.25" />
     </RouterLink>
 
     <div ref="scroller" class="flex-1 overflow-y-auto px-4 pb-4">
