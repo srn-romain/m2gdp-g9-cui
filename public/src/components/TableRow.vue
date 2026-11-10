@@ -19,7 +19,7 @@ const jour = computed(() => formatDay(props.table.startsAt));
 
 <template>
   <article class="flex gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)]">
-    <DishPhoto :dish-name="table.dishName" :size="92" class="self-start" />
+    <DishPhoto :dish-name="table.dishName" :image-url="table.dishImageUrl" :size="92" class="self-start" />
 
     <div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
       <Badge

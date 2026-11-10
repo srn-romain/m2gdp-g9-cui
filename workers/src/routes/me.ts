@@ -157,6 +157,7 @@ meRoutes.get('/tables', async (c) => {
     const dietaryTags = [...effectiveDietaryTags(t)];
     return {
       id: t.id, hostId: t.hostId, dishName: t.dishName, description: t.description,
+      dishImageUrl: t.dishImageUrl ?? null,
       title: host?.firstName ? `${t.dishName} chez ${host.firstName}` : t.dishName,
       startsAt: t.startsAt, durationMinutes: t.durationMinutes, seatsTotal: t.seatsTotal,
       seatsAvailable, visibility: t.visibility, status,

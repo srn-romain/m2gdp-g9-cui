@@ -498,7 +498,11 @@ watch(tableId, (id) => {
           class="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
         >
           <span class="relative shrink-0">
-            <DishPhoto :dish-name="conversation.table.dishName" :size="64" />
+            <DishPhoto
+              :dish-name="conversation.table.dishName"
+              :image-url="conversation.table.dishImageUrl"
+              :size="64"
+            />
             <span
               class="absolute -bottom-1 -left-1 grid size-6 place-items-center rounded-full border-2 border-surface bg-sauge/20 text-sauge-fonce"
               aria-hidden="true"

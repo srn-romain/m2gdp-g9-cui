@@ -30,6 +30,7 @@ export interface TableRow {
   neighborhood: string; city: string; postalCode: string | null;
   latitude: number; longitude: number; addressLine: string | null; createdAt: string;
   wantedContributions: string | null;
+  dishImageUrl: string | null;
 }
 
 /** Ingrédient proposé par l'hôte : liste de courses, rattachée à personne. */
@@ -176,6 +177,7 @@ export async function toTableJson(db: D1Database, row: TableRow, viewerUserId: s
   const dietaryTags = [...effectiveDietaryTags(row)];
   return {
     id: row.id, hostId: row.hostId, dishName: row.dishName, description: row.description,
+    dishImageUrl: row.dishImageUrl ?? null,
     // Titre dérivé : « {dishName} chez {host.firstName} », jamais stocké.
     // Un hôte qui n'a pas encore complété son profil n'a pas de prénom : le titre
     // se réduit alors au plat, plutôt qu'un « chez » orphelin.

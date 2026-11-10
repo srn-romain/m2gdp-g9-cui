@@ -122,7 +122,7 @@ onMounted(async () => {
               :to="`/tables/${table.id}`"
               class="w-44 shrink-0 rounded-2xl border border-ardoise/10 bg-surface p-2 transition-colors hover:bg-ardoise/5"
             >
-              <DishPhoto :dish-name="table.dishName" :size="160" />
+              <DishPhoto :dish-name="table.dishName" :image-url="table.dishImageUrl" :size="160" />
               <span class="mt-2 block truncate font-titres text-sauge-fonce">{{ tableTitle(table) }}</span>
               <span class="mt-1 block truncate text-micro text-secondaire">
                 {{ table.location.neighborhood }} · {{ formatDistance(table.distanceMeters) }}

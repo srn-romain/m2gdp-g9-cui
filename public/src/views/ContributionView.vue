@@ -129,7 +129,7 @@ onMounted(async () => {
       <Skeleton v-if="loading" class="h-20 w-full rounded-2xl" />
 
       <div v-else-if="table" class="flex items-center gap-3 rounded-2xl border border-ardoise/10 p-3">
-        <DishPhoto :dish-name="table.dishName" :size="56" />
+        <DishPhoto :dish-name="table.dishName" :image-url="table.dishImageUrl" :size="56" />
         <div class="min-w-0">
           <p class="truncate text-title-sm font-titres text-sauge-fonce">{{ title }}</p>
           <p class="text-micro text-secondaire">{{ table.location.neighborhood }}</p>

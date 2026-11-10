@@ -5,14 +5,14 @@ import { dishPhotoUrl } from '@/lib/dishPhoto';
 import { cn } from '@/lib/utils';
 
 const props = withDefaults(
-  defineProps<{ dishName: string; size?: number; rounded?: string; class?: string }>(),
+  defineProps<{ dishName: string; imageUrl?: string | null; size?: number; rounded?: string; class?: string }>(),
   { size: 84, rounded: 'rounded-2xl' },
 );
 
 const failed = ref(false);
 watch(() => props.dishName, () => { failed.value = false; });
 
-const src = computed(() => dishPhotoUrl(props.dishName, props.size > 120 ? 900 : 320));
+const src = computed(() => props.imageUrl || dishPhotoUrl(props.dishName, props.size > 120 ? 900 : 320));
 </script>
 
 <template>

@@ -138,6 +138,7 @@ export interface Table {
   /** Dérivé côté client quand l'API ne le fournit pas : « {dishName} chez {host.firstName} ». */
   title?: string;
   dishName: string;
+  dishImageUrl?: string | null;
   description?: string | null;
   startsAt: string;
   durationMinutes: number;

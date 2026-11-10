@@ -488,7 +488,12 @@ onMounted(() => {
           v-if="selected"
           class="absolute inset-x-3 bottom-3 z-[800] flex items-center justify-between gap-3 rounded-xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)]"
         >
-          <DishPhoto :dish-name="selected.dishName" :size="56" class="shrink-0 rounded-lg" />
+          <DishPhoto
+            :dish-name="selected.dishName"
+            :image-url="selected.dishImageUrl"
+            :size="56"
+            class="shrink-0 rounded-lg"
+          />
           <div class="flex min-w-0 flex-1 flex-col gap-0.5">
             <h3 class="truncate text-body-md-strong text-ardoise">{{ tableTitle(selected) }}</h3>
             <p class="flex flex-wrap items-center gap-x-2 text-micro text-secondaire">

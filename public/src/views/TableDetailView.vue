@@ -143,7 +143,7 @@ onMounted(async () => {
     <template v-else>
       <div class="app-pad">
         <img
-          :src="dishPhotoUrl(table.dishName, 900)"
+          :src="table.dishImageUrl || dishPhotoUrl(table.dishName, 900)"
           alt=""
           class="aspect-[4/3] w-full rounded-2xl object-cover"
         />

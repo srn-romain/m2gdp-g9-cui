@@ -25,7 +25,11 @@ const quand = computed(() => ({
 
 <template>
   <article class="flex gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)]">
-    <DishPhoto :dish-name="table.dishName" :size="variant === 'past' ? 76 : 96" />
+    <DishPhoto
+      :dish-name="table.dishName"
+      :image-url="table.dishImageUrl"
+      :size="variant === 'past' ? 76 : 96"
+    />
 
     <!-- Les apports sont une liste : ils sont affichés en entier dans la fiche détail. -->
     <div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
