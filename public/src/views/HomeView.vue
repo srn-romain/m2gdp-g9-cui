@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import illustration from '@/assets/bonjour.png';
 import AccentStroke from '@/components/AccentStroke.vue';
 import AppBar from '@/components/AppBar.vue';
+import DishPhoto from '@/components/DishPhoto.vue';
 import InstallAppCard from '@/components/InstallAppCard.vue';
 import LocationPill from '@/components/LocationPill.vue';
 import SectionHeading from '@/components/SectionHeading.vue';
@@ -19,7 +20,8 @@ import {
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInstallPrompt } from '@/composables/useInstallPrompt';
-import { listMyTables } from '@/lib/api';
+import { listMyTables, listTables } from '@/lib/api';
+import { formatDistance, tableTitle } from '@/lib/format';
 import type { Table } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
 
@@ -32,17 +34,10 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const showAllUpcoming = ref(false);
 const showAllPast = ref(false);
+const proches = ref<Table[]>([]);
 
 const firstName = computed(() => meStore.profile?.firstName ?? '');
 const neighborhood = computed(() => meStore.profile?.neighborhood ?? '');
-const suggestionsMoment = computed(() => {
-  const mois = new Date().getMonth();
-  if (mois >= 2 && mois <= 4) return ['Ratatouille', 'Salade estivale', 'Galettes bretonnes'];
-  if (mois >= 5 && mois <= 7) return ['Salade estivale', 'Ratatouille', 'Tarte fine aux pommes'];
-  if (mois >= 8 && mois <= 10) return ['Soupe de potiron', 'Tartiflette', 'Risotto aux champignons'];
-  return ['Tartiflette', 'Soupe à l’oignon', 'Raclette'];
-});
-const urlSuggestion = (dish: string) => `/explorer?q=${encodeURIComponent(dish)}`;
 const visibleUpcoming = computed(() =>
   showAllUpcoming.value ? upcoming.value : upcoming.value.slice(0, 2),
 );
@@ -63,6 +58,23 @@ onMounted(async () => {
     ]);
     upcoming.value = up.data;
     past.value = passed.data;
+    // Suggestions : de vraies tablées proches du quartier de l'utilisateur.
+    const coords = meStore.profile?.coordinates;
+    if (coords) {
+      try {
+        const page = await listTables({
+          lat: coords.latitude,
+          lng: coords.longitude,
+          radiusKm: 5,
+          sortBy: 'distance',
+          page: 1,
+          pageSize: 10,
+        });
+        proches.value = page.data;
+      } catch {
+        proches.value = [];
+      }
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Chargement impossible.';
   } finally {
@@ -107,18 +119,27 @@ onMounted(async () => {
         />
       </div>
 
-      <!-- Suggestions du moment -->
-      <div class="flex flex-col gap-2">
-        <h2 class="text-body-lg-strong text-ardoise">Suggestions du moment</h2>
-        <div class="flex flex-wrap gap-2">
-          <RouterLink
-            v-for="dish in suggestionsMoment"
-            :key="dish"
-            :to="urlSuggestion(dish)"
-            class="rounded-full bg-sauge/10 px-3 py-2 text-label-md text-sauge-fonce"
-          >
-            {{ dish }}
-          </RouterLink>
+      <!-- Suggestions : de vraies tablées proches du quartier -->
+      <div v-if="loading || proches.length" class="flex flex-col gap-2">
+        <h2 class="text-body-lg-strong text-ardoise">Autour de chez toi</h2>
+        <div class="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+          <template v-if="loading">
+            <Skeleton v-for="i in 3" :key="i" class="h-48 w-44 shrink-0 rounded-2xl" />
+          </template>
+          <template v-else>
+            <RouterLink
+              v-for="table in proches"
+              :key="table.id"
+              :to="`/tables/${table.id}`"
+              class="w-44 shrink-0 rounded-2xl border border-ardoise/10 bg-surface p-2 transition-colors hover:bg-ardoise/5"
+            >
+              <DishPhoto :dish-name="table.dishName" :size="160" />
+              <span class="mt-2 block truncate font-titres text-sauge-fonce">{{ tableTitle(table) }}</span>
+              <span class="mt-1 block truncate text-micro text-secondaire">
+                {{ table.location.neighborhood }} · {{ formatDistance(table.distanceMeters) }}
+              </span>
+            </RouterLink>
+          </template>
         </div>
       </div>
 
