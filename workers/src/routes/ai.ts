@@ -38,6 +38,58 @@ async function generer(c: { env: Env }, messages: Array<{ role: string; content:
   }
 }
 
+const MODELE_GEMINI = 'gemini-2.5-flash';
+
+/** Appel à l'API Gemini (clé fournie par Google AI Studio, stockée en secret Worker). */
+async function genererGemini(c: { env: Env }, messages: Array<{ role: string; content: string }>): Promise<string | null> {
+  const key = c.env.GEMINI_API_KEY;
+  if (!key) return null;
+  try {
+    const texte = messages.map((m) => `${m.role.toUpperCase()} : ${m.content}`).join('\n\n');
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODELE_GEMINI}:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: texte }] }],
+          generationConfig: { maxOutputTokens: 600, responseMimeType: 'application/json' },
+        }),
+      },
+    );
+    if (!res.ok) {
+      console.error('Gemini HTTP', res.status, await res.text());
+      return null;
+    }
+    const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const texteReponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    return typeof texteReponse === 'string' && texteReponse.trim() ? texteReponse : null;
+  } catch (e) {
+    console.error('Gemini KO', e);
+    return null;
+  }
+}
+
+const UNITES_GEMINI = new Set(['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION']);
+
+function normaliserWantedGemini(input: unknown): Array<{ label: string; quantity: number | null; unit: string | null }> | null {
+  if (!Array.isArray(input)) return null;
+  const items: Array<{ label: string; quantity: number | null; unit: string | null }> = [];
+  for (const brut of input.slice(0, 20)) {
+    const o = (brut ?? {}) as Record<string, unknown>;
+    const label = typeof o?.['label'] === 'string' ? o['label'].trim() : '';
+    if (!label) continue;
+    const q = o?.['quantity'] == null ? null : Number(o['quantity']);
+    const unit = typeof o?.['unit'] === 'string' ? o['unit'].trim().toUpperCase() : null;
+    items.push({
+      label: label.slice(0, 120),
+      quantity: q != null && Number.isFinite(q) && q > 0 ? q : null,
+      unit: unit && UNITES_GEMINI.has(unit) ? unit : null,
+    });
+  }
+  return items.length ? items : null;
+}
+
 /** Catalogue local d'ingrédients : repli fiable quand l'IA est indisponible. */
 const CATALOGUE_INGREDIENTS: Array<{ re: RegExp; ingredients: Array<{ label: string; quantity: number; unit: string }> }> = [
   { re: /gratin|dauphinois|parmentier|aligot/i, ingredients: [{ label: 'Pommes de terre', quantity: 1, unit: 'KG' }, { label: 'Crème fraîche', quantity: 20, unit: 'CL' }, { label: 'Fromage râpé', quantity: 200, unit: 'G' }, { label: 'Ail', quantity: 2, unit: 'UNIT' }] },
@@ -75,6 +127,56 @@ function suggestionsLocales(texte: string): Array<{ label: string; quantity: num
   ];
 }
 
+/** Convertit une mesure type « 1 kg », « 200g », « 1/2 cup » en quantité + unité. */
+function parserMesure(mesure: string): { quantity: number; unit: string } {
+  const nb = mesure.match(/(\d+(?:[.,]\d+)?|\d+\/\d+)/);
+  let quantity = 1;
+  if (nb) {
+    const brut = nb[1].replace(',', '.');
+    if (brut.includes('/')) {
+      const [a, b] = brut.split('/').map(Number);
+      quantity = b ? a / b : 1;
+    } else {
+      quantity = Number(brut);
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) quantity = 1;
+  }
+  const bas = mesure.toLowerCase();
+  if (/kg|kilo/.test(bas)) return { quantity, unit: 'KG' };
+  if (/\bg\b|gram/.test(bas)) return { quantity, unit: 'G' };
+  if (/\bcl\b|centilitre/.test(bas)) return { quantity, unit: 'CL' };
+  if (/\bml\b|millilitre/.test(bas)) return { quantity: Math.round((quantity / 10) * 100) / 100, unit: 'CL' };
+  if (/\bl\b|litre/.test(bas)) return { quantity, unit: 'L' };
+  if (/portion|part|serve/.test(bas)) return { quantity, unit: 'PORTION' };
+  return { quantity, unit: 'UNIT' };
+}
+
+/**
+ * TheMealDB (gratuit, sans clé) fournit de vrais ingrédients pour un plat.
+ * La base est surtout en anglais ; en cas d'échec on retombe sur le catalogue local.
+ */
+async function suggestionsMealDb(texte: string): Promise<Array<{ label: string; quantity: number; unit: string }>> {
+  try {
+    const q = encodeURIComponent(texte.trim().slice(0, 80));
+    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${q}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = (await res.json()) as { meals?: Array<Record<string, unknown>> };
+    const meal = json?.meals?.[0];
+    if (!meal) throw new Error('aucun résultat');
+    const items: Array<{ label: string; quantity: number; unit: string }> = [];
+    for (let i = 1; i <= 20; i++) {
+      const label = meal[`strIngredient${i}`];
+      if (typeof label !== 'string' || !label.trim()) continue;
+      const { quantity, unit } = parserMesure(String(meal[`strMeasure${i}`] ?? ''));
+      items.push({ label: label.trim(), quantity, unit });
+    }
+    if (items.length) return items;
+  } catch (e) {
+    console.error('TheMealDB indisponible, repli local', e);
+  }
+  return suggestionsLocales(texte);
+}
+
 aiRoutes.post('/table-draft', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
@@ -83,21 +185,22 @@ aiRoutes.post('/table-draft', async (c) => {
   if (description.length < 3 || description.length > 1000) {
     return apiError('VALIDATION_ERROR', 'description invalide.', { field: 'description' });
   }
-  const reponse = await generer(c, [
+  const messages = [
     {
       role: 'system',
       content:
-        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (nombre entier entre 2 et 12), durationMinutes (nombre entier).',
+        'Tu es un assistant de cuisine convivial. À partir de la description, propose un brouillon de tablée. Réponds UNIQUEMENT en JSON avec les clés : dishName (string), description (string), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (nombre entier entre 2 et 12), durationMinutes (nombre entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
     },
     { role: 'user', content: description },
-  ]);
+  ];
+  const reponse = (await genererGemini(c, messages)) ?? (await generer(c, messages));
 
   if (!reponse) {
     return c.json({
       data: {
         dishName: description.slice(0, 60),
         description,
-        wantedContributions: suggestionsLocales(description),
+        wantedContributions: await suggestionsMealDb(description),
         seatsTotal: 4,
         durationMinutes: 120,
       },
@@ -106,11 +209,12 @@ aiRoutes.post('/table-draft', async (c) => {
 
   const parsed = extraireJson(reponse) as Record<string, unknown> | null;
   const nom = typeof parsed?.dishName === 'string' ? parsed.dishName : description.slice(0, 60);
+  const wantedIA = normaliserWantedGemini(parsed?.wantedContributions);
   return c.json({
     data: {
       dishName: nom,
       description: typeof parsed?.description === 'string' ? parsed.description : description,
-      wantedContributions: suggestionsLocales(`${description} ${nom}`),
+      wantedContributions: wantedIA ?? await suggestionsMealDb(`${nom} ${description}`),
       seatsTotal: Number.isFinite(Number(parsed?.seatsTotal)) ? Number(parsed?.seatsTotal) : 4,
       durationMinutes: Number.isFinite(Number(parsed?.durationMinutes)) ? Number(parsed?.durationMinutes) : 120,
     },
@@ -134,7 +238,7 @@ aiRoutes.post('/table-suggestions', async (c) => {
   const catalogue = [...new Set((rows.results ?? []).map((r) => r.dishName.trim()).filter(Boolean))];
   if (!catalogue.length) return c.json({ data: { dishes: [] } });
 
-  const reponse = await generer(c, [
+  const messagesSuggestion = [
     {
       role: 'system',
       content:
@@ -143,7 +247,8 @@ aiRoutes.post('/table-suggestions', async (c) => {
         '. À partir de la demande (envie, humeur, saison), choisis jusqu\'à 4 plats UNIQUEMENT dans cette liste, ceux qui correspondent le mieux. Réponds UNIQUEMENT en JSON : {"dishes": ["plat de la liste", ...]}. Recopie chaque nom exactement comme dans la liste, sans en inventer.',
     },
     { role: 'user', content: query },
-  ]);
+  ];
+  const reponse = (await genererGemini(c, messagesSuggestion)) ?? (await generer(c, messagesSuggestion));
 
   // Repli lexical quand l'IA ne répond pas : on rapproche les mots de la demande
   // des noms de plats du catalogue.
