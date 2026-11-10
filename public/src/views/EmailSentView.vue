@@ -125,7 +125,7 @@ async function resend() {
           inputmode="numeric"
           autocomplete="one-time-code"
           maxlength="6"
-          placeholder="Code à 6 chiffres"
+          placeholder="000000"
           class="text-center font-mono text-title-lg tracking-[0.5em]"
         />
       </InputGroup>
