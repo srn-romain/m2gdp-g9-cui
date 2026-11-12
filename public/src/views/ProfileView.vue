@@ -253,8 +253,8 @@ onMounted(async () => {
         >
           <TriangleAlert class="mt-0.5 size-5 shrink-0 text-terracotta" :stroke-width="1.75" />
           <p class="text-body-sm text-ardoise">
-            Ton profil est incomplet : renseigne ton prénom, ton nom, ton adresse et ta
-            photo de profil pour pouvoir rejoindre ou créer une tablée.
+            Ton profil est incomplet : renseigne {{ meStore.resumeManquants }} pour
+            pouvoir rejoindre ou créer une tablée.
           </p>
         </div>
 

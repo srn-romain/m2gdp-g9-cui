@@ -15,6 +15,25 @@ export const useMeStore = defineStore('me', () => {
     return Boolean(p && p.firstName && p.lastName && p.neighborhood && p.city && p.avatarUrl);
   });
 
+  /** Libellés des champs manquants, pour afficher un message précis. */
+  const champsManquants = computed(() => {
+    const p = profile.value;
+    if (!p) return [] as string[];
+    const manquants: string[] = [];
+    if (!p.firstName) manquants.push('ton prénom');
+    if (!p.lastName) manquants.push('ton nom');
+    if (!p.neighborhood || !p.city) manquants.push('ton adresse');
+    if (!p.avatarUrl) manquants.push('ta photo de profil');
+    return manquants;
+  });
+
+  const resumeManquants = computed(() => {
+    const m = champsManquants.value;
+    if (!m.length) return '';
+    if (m.length === 1) return m[0];
+    return `${m.slice(0, -1).join(', ')} et ${m[m.length - 1]}`;
+  });
+
   async function load(force = false): Promise<User | null> {
     if (profile.value && !force) return profile.value;
     loading.value = true;
@@ -41,5 +60,5 @@ export const useMeStore = defineStore('me', () => {
     error.value = null;
   }
 
-  return { profile, loading, error, isOnboarded, load, save, reset };
+  return { profile, loading, error, isOnboarded, champsManquants, resumeManquants, load, save, reset };
 });

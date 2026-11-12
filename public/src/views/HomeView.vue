@@ -95,7 +95,7 @@ onMounted(async () => {
         <TriangleAlert class="mt-0.5 size-5 shrink-0 text-terracotta" :stroke-width="1.75" />
         <span class="flex-1 text-body-sm text-ardoise">
           <span class="font-semibold">Complète ton profil.</span>
-          Renseigne ton prénom, ton nom, ton adresse et ta photo de profil pour créer ou rejoindre une tablée.
+          Renseigne {{ meStore.resumeManquants }} pour créer ou rejoindre une tablée.
         </span>
         <ChevronRight class="size-4 shrink-0 text-terracotta" />
       </RouterLink>
