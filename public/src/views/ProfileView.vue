@@ -210,7 +210,7 @@ onMounted(async () => {
           <span class="relative inline-flex size-16 shrink-0">
             <span
               v-if="!profile.avatarUrl"
-              class="absolute -top-1 -right-1 z-10 size-3 rounded-full border-2 border-creme bg-terracotta"
+              class="absolute top-0 right-0 z-10 size-3 rounded-full border-2 border-creme bg-terracotta"
               aria-label="Photo de profil à compléter"
             ></span>
             <Avatar class="size-16 bg-terracotta/12">
