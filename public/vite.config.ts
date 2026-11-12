@@ -48,6 +48,9 @@ export default defineConfig({
         clientsClaim: true,
         // Les illustrations importées depuis src/assets doivent être disponibles hors ligne.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
+        // Pas de fallback de navigation : l'index.html est servi par le réseau
+        // (no-cache), donc les visiteurs voient toujours la dernière version.
+        navigateFallback: null as unknown as string,
         // Sans ce nettoyage, un déploiement laisse l'ancien précache en place et
         // l'onglet ouvert réclame des chunks qui n'existent plus.
         cleanupOutdatedCaches: true,
