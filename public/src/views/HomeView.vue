@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, ChevronUp, Search, TriangleAlert } from '@lucide/vue';
+import { ChevronDown, ChevronRight, ChevronUp, TriangleAlert } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import illustration from '@/assets/bonjour.png';
 import AccentStroke from '@/components/AccentStroke.vue';
@@ -186,7 +186,6 @@ onMounted(async () => {
 
         <Button as-child size="lg" class="mt-6 w-full">
           <RouterLink :to="profilIncomplet ? '/profil' : '/explorer'" class="flex w-full items-center gap-3">
-            <Search class="size-5 shrink-0" :stroke-width="2" />
             <span class="flex-1 text-center">
               {{ profilIncomplet ? 'Compléter mon profil' : 'Explorer les tablées' }}
             </span>
