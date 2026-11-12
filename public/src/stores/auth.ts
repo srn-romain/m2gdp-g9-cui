@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { setAccessTokenProvider } from '@/lib/api';
 import { DEMO_MODE, DEMO_USER } from '@/lib/mock';
@@ -43,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Un même flux sert la connexion et l'inscription. Selon que Supabase considère
     // l'utilisateur comme existant ou nouveau, le code est typé 'email' ou 'signup'.
     // On essaie les deux pour absorber cette différence sans dérouter l'utilisateur.
-    let session: { user: SupabaseUser } | null = null;
+    let session: Session | null = null;
     let derniereErreur: Error | null = null;
     for (const type of ['email', 'signup'] as const) {
       const { data, error } = await supabase.auth.verifyOtp({
@@ -58,6 +58,12 @@ export const useAuthStore = defineStore('auth', () => {
       if (error) derniereErreur = new Error(error.message);
     }
     if (!session) throw derniereErreur ?? new Error('Code invalide.');
+    // Persiste explicitement la session avant la navigation : sans cela, le premier
+    // appel API (accueil) peut partir sans jeton si getSession() ne l'a pas encore.
+    await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
     user.value = session.user;
     isNewUser.value =
       session.user.created_at === session.user.last_sign_in_at;
