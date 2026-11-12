@@ -12,7 +12,7 @@ export const useMeStore = defineStore('me', () => {
   /** L'onboarding est terminé quand l'identité et le quartier sont renseignés. */
   const isOnboarded = computed(() => {
     const p = profile.value;
-    return Boolean(p && p.firstName && p.lastName && p.neighborhood && p.city);
+    return Boolean(p && p.firstName && p.lastName && p.neighborhood && p.city && p.avatarUrl);
   });
 
   async function load(force = false): Promise<User | null> {

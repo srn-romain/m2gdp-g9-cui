@@ -208,6 +208,11 @@ onMounted(async () => {
       <template v-else>
         <div class="flex items-center gap-3">
           <span class="relative inline-flex size-16 shrink-0">
+            <span
+              v-if="!profile.avatarUrl"
+              class="absolute -top-1 -right-1 z-10 size-3 rounded-full border-2 border-creme bg-terracotta"
+              aria-label="Photo de profil à compléter"
+            ></span>
             <Avatar class="size-16 bg-terracotta/12">
               <AvatarImage
                 v-if="profile.avatarUrl"
@@ -248,8 +253,8 @@ onMounted(async () => {
         >
           <TriangleAlert class="mt-0.5 size-5 shrink-0 text-terracotta" :stroke-width="1.75" />
           <p class="text-body-sm text-ardoise">
-            Ton profil est incomplet : renseigne ton prénom, ton nom et ton adresse pour
-            pouvoir rejoindre ou créer une tablée.
+            Ton profil est incomplet : renseigne ton prénom, ton nom, ton adresse et ta
+            photo de profil pour pouvoir rejoindre ou créer une tablée.
           </p>
         </div>
 
