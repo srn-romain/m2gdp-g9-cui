@@ -57,6 +57,7 @@ interface Conversation {
   apercu: string;
   quand: string;
   tri: string;
+  passee: boolean;
 }
 
 const onglet = ref<'toutes' | 'mes-tablees'>('toutes');
@@ -64,11 +65,13 @@ const conversations = ref<Conversation[]>([]);
 const listLoading = ref(true);
 const listError = ref<string | null>(null);
 
-const conversationsAffichees = computed(() =>
+const baseAffichees = computed(() =>
   onglet.value === 'toutes'
     ? conversations.value
     : conversations.value.filter((c) => c.table.myParticipation?.role === 'HOST'),
 );
+const aVenir = computed(() => baseAffichees.value.filter((c) => !c.passee));
+const passees = computed(() => baseAffichees.value.filter((c) => c.passee));
 
 function apercuDe(message: Message | undefined, table: Table): string {
   if (!message) return `${formatDayTime(table.startsAt)} · aucun message pour l'instant`;
@@ -86,18 +89,26 @@ async function loadConversations() {
       listMyTables('upcoming', 1, 20),
       listMyTables('past', 1, 10),
     ]);
-    const tables = [...avenir.data, ...passees.data];
     // Affichage immédiat sans attendre les derniers messages (évite le N+1).
-    conversations.value = tables
-      .map((table) => ({
+    conversations.value = [
+      ...avenir.data.map((table) => ({
         table,
         apercu: apercuDe(undefined, table),
         quand: formatStamp(table.createdAt),
         tri: table.createdAt,
-      }))
+        passee: false,
+      })),
+      ...passees.data.map((table) => ({
+        table,
+        apercu: apercuDe(undefined, table),
+        quand: formatStamp(table.createdAt),
+        tri: table.createdAt,
+        passee: true,
+      })),
+    ]
       .sort((a, b) => b.tri.localeCompare(a.tri));
     // Les aperçus réels arrivent ensuite, sans bloquer le premier rendu.
-    void enrichirApercus(tables);
+    void enrichirApercus([...avenir.data, ...passees.data]);
   } catch (e) {
     listError.value = e instanceof Error ? e.message : 'Chargement impossible.';
   } finally {
@@ -484,7 +495,7 @@ watch(tableId, (id) => {
         </EmptyHeader>
       </Empty>
 
-      <Empty v-else-if="!conversationsAffichees.length">
+      <Empty v-else-if="!baseAffichees.length">
         <EmptyHeader>
           <EmptyTitle>Aucune conversation</EmptyTitle>
           <EmptyDescription>
@@ -498,12 +509,14 @@ watch(tableId, (id) => {
       </Empty>
 
       <div v-else class="flex flex-col gap-3">
-        <RouterLink
-          v-for="conversation in conversationsAffichees"
-          :key="conversation.table.id"
-          :to="`/messages/${conversation.table.id}`"
-          class="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
-        >
+        <template v-if="aVenir.length">
+          <h2 class="text-body-lg-strong text-ardoise">À venir</h2>
+          <RouterLink
+            v-for="conversation in aVenir"
+            :key="conversation.table.id"
+            :to="`/messages/${conversation.table.id}`"
+            class="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_2px_10px_rgba(43,43,43,.06)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
+          >
           <span class="relative shrink-0">
             <DishPhoto
               :dish-name="conversation.table.dishName"
@@ -529,7 +542,44 @@ watch(tableId, (id) => {
           <span class="shrink-0 self-start pt-1 text-micro text-secondaire">
             {{ conversation.quand }}
           </span>
-        </RouterLink>
+          </RouterLink>
+        </template>
+
+        <template v-if="passees.length">
+          <h2 class="mt-2 text-body-lg-strong text-ardoise">Passées</h2>
+          <RouterLink
+            v-for="conversation in passees"
+            :key="conversation.table.id"
+            :to="`/messages/${conversation.table.id}`"
+            class="flex items-center gap-3 rounded-2xl bg-surface p-3 opacity-70 shadow-[0_2px_10px_rgba(43,43,43,.06)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
+          >
+            <span class="relative shrink-0">
+              <DishPhoto
+                :dish-name="conversation.table.dishName"
+                :image-url="conversation.table.dishImageUrl"
+                :size="64"
+              />
+              <span
+                class="absolute -bottom-1 -left-1 grid size-6 place-items-center rounded-full border-2 border-surface bg-sauge/20 text-sauge-fonce"
+                aria-hidden="true"
+              >
+                <Users class="size-3.5" :stroke-width="2.25" />
+              </span>
+            </span>
+            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span class="flex items-center gap-1.5">
+                <span class="truncate text-title-sm font-titres text-sauge-fonce">
+                  {{ tableTitle(conversation.table) }}
+                </span>
+                <AccentStroke :height="9" />
+              </span>
+              <span class="truncate text-micro text-secondaire">{{ conversation.apercu }}</span>
+            </span>
+            <span class="shrink-0 self-start pt-1 text-micro text-secondaire">
+              {{ conversation.quand }}
+            </span>
+          </RouterLink>
+        </template>
       </div>
 
       <div class="mt-2 flex justify-center">
