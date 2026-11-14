@@ -59,7 +59,7 @@ l'API, qui est la seule à connaître les règles du métier.
 | État & navigation | Pinia, vue-router | mémoriser la session et naviguer |
 | Authentification | Supabase Auth | « qui est qui », sans mot de passe |
 | API | Hono sur Cloudflare Workers | toutes les règles métier, base `/api/v1` |
-| IA | Cloudflare Workers AI | enrichir une description, proposer des plats |
+| IA | Gemini puis Cloudflare Workers AI (repli local) | enrichir une description + ambiance, proposer des plats existants |
 | Base de données | Cloudflare D1 (SQL) | tables, utilisateurs, messages, participations |
 | Fichiers | Cloudflare R2 (compatible S3) | avatars et photos |
 | Hébergement | Cloudflare Pages | les 3 sites publics |
@@ -77,8 +77,8 @@ sequenceDiagram
 
     U->>APP: tape son e-mail
     APP->>SA: signInWithOtp(email)
-    SA-->>U: envoie un e-mail avec un lien magique
-    U->>APP: clique le lien (retour /auth/finish)
+    SA-->>U: envoie un e-mail avec un code à 6 chiffres (ou lien magique)
+    U->>APP: saisit le code (retour /auth/finish)
     APP->>SA: récupère la session
     SA-->>APP: access token (1 h) + refresh token
     APP->>API: GET /api/v1/me (Bearer token)

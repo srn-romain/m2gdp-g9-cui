@@ -105,7 +105,7 @@ classDiagram
     User "1" --> "0..*" Table : héberge
     User "1" --> "0..*" Participation : participe
     Table "1" *-- "1..*" Participation : rassemble
-    Participation "1" *-- "0..1" Contribution : déclare
+    Participation "1" *-- "0..N" Contribution : déclare
     Table "1" *-- "0..*" WantedContribution : propose
     Table "1" *-- "0..*" Message : contient
     User "1" --> "0..*" Message : écrit
@@ -116,9 +116,9 @@ Lecture des relations :
 
 - `Table *-- Participation` est une **composition** : une participation n'existe pas sans sa
   tablée, et une tablée porte toujours au moins une participation, celle de son hôte.
-- `Participation *-- Contribution` est une composition avec multiplicité `0..1` : un
-  participant peut ne rien apporter (« Je ne fais pas les courses »), il ne peut pas
-  apporter deux choses distinctes dans le scénario minimal.
+- `Participation *-- Contribution` est une composition avec multiplicité `0..N` : un
+  participant peut ne rien apporter (« Je ne fais pas les courses ») ou apporter
+  plusieurs choses distinctes (par exemple un ingrédient et une boisson).
 - `Table *-- WantedContribution` est une **composition** d'objets-valeurs : la liste de
   courses proposée par l'hôte (« Courgettes 4 », « Riz arborio 500 g »). Elle n'est
   rattachée à aucune participation — c'est une suggestion que les invités s'approprient
@@ -195,7 +195,7 @@ tablées ».
 | Champ | Type | Contraintes | Description |
 |---|---|---|---|
 | `id` | UUID | clé primaire | |
-| `participationId` | UUID | clé étrangère vers `Participation.id`, **unique**, non nul | Une contribution au plus par participation |
+| `participationId` | UUID | clé étrangère vers `Participation.id`, non nul, indexé | Plusieurs contributions possibles par participation (`0..N`) |
 | `label` | String(120) | non nul | « Pommes de terre », « salade », « pain » |
 | `quantity` | Decimal | nullable | Nul si `category = NONE` |
 | `unit` | QuantityUnit | nullable | `KG`, `G`, `L`, `CL`, `UNIT`, `PORTION` |
@@ -249,13 +249,13 @@ avec sa tablée, et n'est rattaché à aucune participation.
 | R2 | `seatsAvailable = seatsTotal - count(Participation où role = GUEST et status = CONFIRMED)`. Jamais stocké, jamais écrit à la main. |
 | R3 | Rejoindre une tablée exige `status = OPEN`, `seatsAvailable >= 1` et `startsAt` dans le futur. Sinon `409 TABLE_FULL` ou `409 TABLE_CLOSED`. |
 | R4 | Un utilisateur ne peut avoir qu'une participation par tablée. Un second appel renvoie `409 ALREADY_PARTICIPATING`. |
-| R5 | Une contribution appartient à une participation, jamais directement à un utilisateur. |
+| R5 | Une ou plusieurs contributions (`0..N`) appartiennent à une participation, jamais directement à un utilisateur. |
 | R6 | `category = NONE` implique `quantity` et `unit` nuls. |
 | R7 | L'adresse exacte (`location.addressLine`) n'est renvoyée qu'à l'hôte et aux participants confirmés. Les autres reçoivent le quartier et une position arrondie à 300 mètres près, ce qui produit « Lyon 7e · 700 m ». |
 | R8 | Un message ne peut être créé que par l'hôte ou un participant confirmé, et seulement si la tablée est `OPEN` ou `FULL`. Les tablées `CANCELLED` et `PASSED` restent en lecture seule. |
 | R9 | L'hôte ne peut pas quitter sa propre tablée (`409 HOST_CANNOT_LEAVE`) : il doit l'annuler, ce qui bascule toutes les participations en `CANCELLED`. |
 | R10 | Passé `startsAt + durationMinutes`, la tablée devient `PASSED`. Aucune donnée n'est supprimée physiquement : l'historique « Passées » et les fils de discussion restent consultables. |
-| R11 | L'hôte peut annuler sa tablée. Un invité ne peut modifier que sa propre contribution et sa propre participation. |
+| R11 | L'hôte peut annuler sa tablée. Un invité ne peut modifier que ses propres contributions et sa propre participation. |
 | R12 | `Table.wantedContributions` est une liste de courses indicative : elle n'est rattachée à aucune participation et n'engage personne. Ce qui est réellement apporté reste une `Contribution` liée à une `Participation` (cf. R5) et alimente « Ce que chacun apporte ». |
 | R13 | Les médias (photo de profil, image de message, message vocal) sont stockés dans R2 sous une clé imprévisible et servis par l'API : `avatarUrl`, `imageUrl` et `audioUrl` pointent vers `GET /avatar?key=…`. L'écriture n'est permise que sous `avatars/{userId}/` ou `messages/{userId}/`. |
 | R14 | `GET /tables` accepte `lat`/`lng` : sans point de départ connu, aucun filtre de rayon ni tri par distance ne s'applique (repli sur le tri par date). |

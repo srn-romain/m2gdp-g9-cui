@@ -293,7 +293,7 @@ Ce qui change en prod : le nom, le vocabulaire, les entites et l'API /api/v1.
 4. GET /me/tables?scope=upcoming|past|all (Accueil A venir / Passees).
 5. GET /tables?lat&lng&radiusKm&vegetarianOnly&startsAfter&startsBefore&query&sortBy (Explorer).
 6. GET /tables/{tableId} (fiche Gratin dauphinois chez Leonie).
-7. POST /tables/{tableId}/participations {contribution} + Idempotency-Key -> 201.
+7. POST /tables/{tableId}/participations {contributions[]} + Idempotency-Key -> 201.
    Variante NONE : {label: Je ne fais pas les courses, category: NONE} sans quantity/unit.
 8. GET + POST /tables/{tableId}/messages (fil Gratin chez Leonie).
 9. Completer la boucle : POST /tables (Creer une tablee) et
@@ -345,7 +345,7 @@ Tables D1 a creer :
 - participations(id, tableId, userId, role HOST|GUEST, status
   CONFIRMED|CANCELLED|ATTENDED|NO_SHOW defaut CONFIRMED, joinedAt,
   UNIQUE(tableId,userId), INDEX(userId,status)).
-- contributions(id, participationId UNIQUE, label, quantity Decimal nullable,
+- contributions(id, participationId indexé (0..N), label, quantity Decimal nullable,
   unit KG|G|L|CL|UNIT|PORTION nullable, category
   APPETIZER|MAIN|DESSERT|DRINK|INGREDIENT|NONE, status PROPOSED|CONFIRMED|BROUGHT).
 - messages(id, tableId indexe, authorId, type TEXT|AUDIO|SYSTEM,
@@ -356,13 +356,13 @@ R1 creation tablee = participation HOST CONFIRMED dans la meme transaction.
 R2 seatsAvailable calcule = seatsTotal - count(GUEST CONFIRMED), jamais stocke.
 R3 rejoindre exige OPEN + seatsAvailable>=1 + startsAt futur sinon 409.
 R4 unicite (tableId,userId) -> 409 ALREADY_PARTICIPATING.
-R5 contribution rattachee a participation, 0..1.
+R5 contributions (0..N) rattachees a une participation.
 R6 category NONE => quantity et unit nuls.
 R7 adresse exacte reservee hote + confirmes ; autres = quartier + position arrondie 300m.
 R8 messages reserves hote + confirmes, table OPEN|FULL ; CANCELLED|PASSED lecture seule.
 R9 hote ne quitte pas (409 HOST_CANNOT_LEAVE), il annule -> participations CANCELLED.
 R10 passe startsAt+durationMinutes -> PASSED, historique conserve.
-R11 invites : ecriture limite a sa participation/contribution.
+R11 invites : ecriture limite a sa participation et a ses contributions.
 
 Titre derive a l'affichage : {dishName} chez {host.firstName}, jamais stocke.
 status FULL derive de seatsAvailable=0. Filtres A venir/Passees calcules via status+startsAt.
@@ -393,12 +393,16 @@ quartier=Location.neighborhood, rating.count agregat lecture seule.
 Bon retour -> POST magic-links. Onboarding vous etes/Prenom/Nom/adresse -> GET+PATCH /me.
 Accueil A venir/Passees -> GET /me/tables. Explorer + filtres Ce soir/Vegetarien -> GET /tables.
 Detail Gratin dauphinois chez Leonie -> GET /tables/{id}. Votre contribution + Que peux-tu
-apporter -> POST participations. C'est confirme = 201. Messages + fil Gratin chez Leonie -> messages.
-Creer une tablee -> POST /tables. Desinscription -> DELETE participations/me.
+apporter -> POST participations {contributions[]} puis PATCH /tables/{id}/contributions/me (0..N).
+C'est confirme = 201. Messages + fil Gratin chez Leonie -> messages.
+Creer une tablee -> POST /tables (+ PATCH /tables/{id}/wanted-contributions pour la liste de courses).
+Desinscription -> DELETE participations/me.
 
 Hors perimetre (ne pas implementer, ajout additif futur sans rupture) :
 avis/notes (Review), recettes (Recipe), favoris (Favorite), notifications push,
-meteo, envoi photos/vocal (Media), gestion hote PATCH tables/contributions, moderation (Report).
+meteo, moderation (Report), gestion hote PATCH /tables.
+Deja en prod contrairement au POC : avatars et images/messages vocaux via R2,
+PATCH /tables/{id}/contributions/me et PATCH /tables/{id}/wanted-contributions.
 
 ### B6. Verification prod
 

@@ -466,9 +466,10 @@ paths:
       operationId: draftTableWithAi
       summary: Enrichir une description en brouillon de tablée
       description: |
-        À partir d'une description libre, Workers AI propose un brouillon
-        (titre, description, apports, places, durée). En cas d'indisponibilité,
-        un repli déterministe est renvoyé.
+        À partir d'une description libre, l'IA (Gemini en priorité, Workers AI ensuite)
+        propose un brouillon (titre, description du plat, ambiance, apports, places,
+        durée, image via ThemealDB). En cas d'indisponibilité, un repli
+        déterministe local est renvoyé.
       requestBody:
         required: true
         content:
@@ -482,6 +483,10 @@ paths:
                   minLength: 3
                   maxLength: 1000
                   example: "Un gratin maison à partager entre voisins."
+                ambianceHint:
+                  type: string
+                  maxLength: 300
+                  description: "Mots-clés d'ambiance saisis par l'utilisateur, intégrés au paragraphe d'ambiance."
       responses:
         '200':
           description: Brouillon proposé.
@@ -497,6 +502,15 @@ paths:
                     properties:
                       dishName: { type: string }
                       description: { type: string }
+                      ambiance:
+                        type: [string, 'null']
+                        maxLength: 300
+                        description: "Paragraphe d'ambiance (2-3 phrases, 300 caractères max), distinct de la description du plat."
+                      moteur:
+                        type: string
+                        example: "gemini:gemini-2.5-flash"
+                      dishImageUrl:
+                        type: [string, 'null']
                       wantedContributions:
                         type: array
                         items:
@@ -518,7 +532,7 @@ paths:
       tags: [Intelligence artificielle]
       operationId: suggestTablesWithAi
       summary: Proposer des plats selon une envie
-      description: "Propose jusqu'à 4 plats à partir d'une envie, d'une humeur ou d'une saison."
+      description: "Propose jusqu'à 4 plats choisis UNIQUEMENT parmi les plats des tablées OPEN/FULL existantes (aucune invention). Repli lexical déterministe si l'IA est indisponible. L'explorateur utilise par défaut la recherche locale déterministe sur la base."
       requestBody:
         required: true
         content:
@@ -1173,17 +1187,23 @@ components:
           type: string
           format: date-time
           example: "2026-04-09T20:15:00Z"
-        contribution:
-          oneOf:
-            - $ref: '#/components/schemas/Contribution'
-            - type: 'null'
+        contributions:
+          type: array
+          description: "Apports du participant (0..N). Vide = « Je ne fais pas les courses »."
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Contribution'
 
     ParticipationCreate:
       type: object
-      required: [contribution]
+      required: []
       properties:
-        contribution:
-          $ref: '#/components/schemas/ContributionInput'
+        contributions:
+          type: array
+          description: "Apports du participant (0..N). Absent ou vide = aucun apport."
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ContributionInput'
 
     Table:
       type: object

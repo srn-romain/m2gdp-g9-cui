@@ -97,12 +97,14 @@ Content-Type: application/json
 Idempotency-Key: 8f14e45f-ea0a-4a1c-9c3b-0d5c2b7a9e11
 
 {
-  "contribution": {
-    "label": "Pommes de terre",
-    "category": "INGREDIENT",
-    "quantity": 1,
-    "unit": "KG"
-  }
+  "contributions": [
+    {
+      "label": "Pommes de terre",
+      "category": "INGREDIENT",
+      "quantity": 1,
+      "unit": "KG"
+    }
+  ]
 }
 
 ### 11 bis. Cas « Je ne fais pas les courses »
@@ -111,10 +113,7 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "contribution": {
-    "label": "Je ne fais pas les courses",
-    "category": "NONE"
-  }
+  "contributions": []
 }
 
 ### 12. Se désinscrire
@@ -153,5 +152,5 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "contribution": { "label": "Salade verte", "category": "APPETIZER" }
+  "contributions": [{ "label": "Salade verte", "category": "APPETIZER" }]
 }
