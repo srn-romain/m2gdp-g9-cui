@@ -1,8 +1,10 @@
 /* Genere le backfill SQL des regimes (dietaryTags) depuis un dump JSON de `tables`.
  * Dump : sqlite3 -json base.db "SELECT id, dishName, wantedContributions, dietaryTags, isVegetarian FROM tables;" > /tmp/tables.json
  * Local : node workers/seed/backfill-dietary-tags.mjs /tmp/tables.json --out workers/seed/backfill-dietary-tags.sql
- * Prod : sur demande explicite uniquement, npx wrangler d1 execute labonnetablee-db --remote --file=workers/seed/backfill-dietary-tags.sql
+ * Prod : sur demande explicite uniquement, regenerer depuis un dump prod PUIS npx wrangler d1 execute labonnetablee-db --remote --file=<fichier-genere>.
  * Deterministe : memes entrees -> meme fichier. Idempotent : ne touche que les lignes vides.
+ * SQL genere depuis un dump LOCAL : pour la prod, regenerer depuis un dump prod
+ * (les IDs utilisateurs different ; rejouer tel quel ecraserait des tags deja renseignes).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { computeTags } from './dietary-rules.mjs';

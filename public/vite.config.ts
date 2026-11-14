@@ -10,6 +10,9 @@ export default defineConfig({
   root: '.',
   publicDir: 'static',
   build: { outDir: 'dist', emptyOutDir: true },
+  // Estampille visible dans Profil : permet de vérifier la version réellement
+  // exécutée côté utilisateur sans lui demander quoi que ce soit.
+  define: { __APP_VERSION__: JSON.stringify(new Date().toISOString()) },
   server: { port: 5173 },
   resolve: { alias: { '@': srcPath } },
   plugins: [
@@ -17,6 +20,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Enregistrement manuel (main.ts) pour afficher « Nouvelle version »
+      // avec rechargement en un geste dès qu'un déploiement est détecté.
+      injectRegister: false,
       manifest: {
         id: '/',
         name: 'La Bonne Tablée',

@@ -27,6 +27,9 @@ const router = useRouter();
 const meStore = useMeStore();
 const authStore = useAuthStore();
 
+/** Estampille de build : permet de vérifier la version exécutée côté utilisateur. */
+const versionApp = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+
 const upcomingCount = ref<number | null>(null);
 const preferencesOpen = ref(false);
 const preferences = ref<string[]>([]);
@@ -331,6 +334,7 @@ onMounted(async () => {
           <LogOut data-icon="inline-start" />
           Se déconnecter
         </Button>
+        <p class="px-1 pt-2 text-center text-micro text-secondaire">Version {{ versionApp }}</p>
       </template>
     </div>
 

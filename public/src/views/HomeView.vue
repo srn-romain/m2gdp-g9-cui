@@ -87,7 +87,7 @@ onMounted(async () => {
     <!-- Rythme vertical relevé sur la maquette : 24 px entre les blocs, 36 px avant le salut. -->
     <div class="app-pad flex flex-1 flex-col gap-6 pb-6">
       <RouterLink
-        v-if="!meStore.isOnboarded"
+        v-if="profilIncomplet"
         to="/profil"
         class="flex items-start gap-2 rounded-2xl border border-terracotta/30 bg-terracotta/10 p-3"
       >
