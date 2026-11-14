@@ -88,17 +88,19 @@ async function submit() {
   submitting.value = true;
   errorCode.value = null;
   errorMessage.value = null;
-  const contribution =
+  const contributions =
     mode.value === 'none'
-      ? { label: 'Je ne fais pas les courses', category: 'NONE' as ContributionCategory }
-      : {
-          label: finalLabel.value,
-          category: selectedCategory.value,
-          quantity: quantity.value,
-          unit: unit.value,
-        };
+      ? []
+      : [
+          {
+            label: finalLabel.value,
+            category: selectedCategory.value,
+            quantity: quantity.value,
+            unit: unit.value,
+          },
+        ];
   try {
-    await joinTable(tableId.value, { contribution }, idempotencyKey);
+    await joinTable(tableId.value, { contributions }, idempotencyKey);
     await router.replace(`/tables/${tableId.value}/confirme`);
   } catch (e) {
     const err = e as { code?: string; message?: string };

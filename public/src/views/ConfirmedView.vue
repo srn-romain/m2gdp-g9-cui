@@ -14,7 +14,7 @@ const table = ref<Table | null>(null);
 const loading = ref(true);
 
 const title = computed(() => (table.value ? tableTitle(table.value) : ''));
-const contribution = computed(() => table.value?.myParticipation?.contribution ?? null);
+const contributions = computed(() => table.value?.myParticipation?.contributions ?? []);
 const place = computed(() => {
   if (!table.value) return '';
   const distance = formatDistance(table.value.distanceMeters);
@@ -54,9 +54,11 @@ onMounted(async () => {
         </p>
       </div>
 
-      <div v-if="contribution" class="rounded-2xl border border-ardoise/10 p-4">
+      <div v-if="contributions.length" class="rounded-2xl border border-ardoise/10 p-4">
         <p class="text-micro text-secondaire">Tu apportes</p>
-        <p class="text-body-md text-ardoise">{{ contributionLine(contribution) }}</p>
+        <p v-for="c in contributions" :key="c.id" class="text-body-md text-ardoise">
+          {{ contributionLine(c) }}
+        </p>
       </div>
       <div v-else class="rounded-2xl border border-ardoise/10 p-4">
         <p class="text-micro text-secondaire">Tu apportes</p>

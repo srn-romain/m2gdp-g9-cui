@@ -240,8 +240,8 @@ export const createTable = (body: TableCreate) =>
 export const updateWantedContributions = (tableId: string, wanted: WantedContribution[]) =>
   apiPatch<Table>(`${BASE}/tables/${tableId}/wanted-contributions`, { wantedContributions: wanted });
 
-export const updateMyContribution = (tableId: string, contribution: ContributionInput | null) =>
-  apiPatch<Table>(`${BASE}/tables/${tableId}/contributions/me`, contribution ?? { label: null });
+export const updateMyContributions = (tableId: string, contributions: ContributionInput[]) =>
+  apiPatch<Table>(`${BASE}/tables/${tableId}/contributions/me`, { contributions });
 
 /** Rejouable sans risque : l'Idempotency-Key est fournie par l'appelant. */
 export const joinTable = (tableId: string, body: ParticipationCreate, idempotencyKey: string) =>

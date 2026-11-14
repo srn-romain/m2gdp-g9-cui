@@ -142,21 +142,19 @@ export async function myParticipation(db: D1Database, tableId: string, userId: s
     "SELECT id, role, status, joinedAt FROM participations WHERE tableId = ? AND userId = ? AND status = 'CONFIRMED'",
   ).bind(tableId, userId).first<{ id: string; role: string; status: string; joinedAt: string }>();
   if (!p) return null;
-  const c = await db.prepare(
-    'SELECT id, label, quantity, unit, category, status FROM contributions WHERE participationId = ?',
-  ).bind(p.id).first<{
+  const rows = await db.prepare(
+    'SELECT id, label, quantity, unit, category, status FROM contributions WHERE participationId = ? ORDER BY id ASC',
+  ).bind(p.id).all<{
     id: string; label: string; quantity: string | null; unit: string | null;
     category: string; status: string;
   }>();
   return {
     id: p.id, tableId, role: p.role, status: p.status, joinedAt: p.joinedAt,
-    contribution: c
-      ? {
-          id: c.id, label: c.label,
-          quantity: c.quantity == null ? null : Number(c.quantity),
-          unit: c.unit, category: c.category, status: c.status,
-        }
-      : null,
+    contributions: (rows.results ?? []).map((c) => ({
+      id: c.id, label: c.label,
+      quantity: c.quantity == null ? null : Number(c.quantity),
+      unit: c.unit, category: c.category, status: c.status,
+    })),
   };
 }
 

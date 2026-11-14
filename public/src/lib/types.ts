@@ -129,11 +129,11 @@ export interface Participation {
   role: ParticipationRole;
   status: ParticipationStatus;
   joinedAt: string;
-  contribution?: Contribution | null;
+  contributions?: Contribution[];
 }
 
 export interface ParticipationCreate {
-  contribution: ContributionInput;
+  contributions: ContributionInput[];
 }
 
 export interface Table {

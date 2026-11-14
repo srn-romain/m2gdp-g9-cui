@@ -22,8 +22,8 @@ import {
   formatTime,
   tableTitle,
 } from '@/lib/format';
-import { getTable, joinTable, leaveTable, updateMyContribution, updateWantedContributions } from '@/lib/api';
-import type { ContributionCategory, QuantityUnit, Table, WantedContribution } from '@/lib/types';
+import { getTable, joinTable, leaveTable, updateMyContributions, updateWantedContributions } from '@/lib/api';
+import type { ContributionCategory, ContributionInput, QuantityUnit, Table, WantedContribution } from '@/lib/types';
 import { useMeStore } from '@/stores/me';
 
 const route = useRoute();
@@ -92,38 +92,61 @@ async function enregistrerWanted() {
   }
 }
 
-async function retirerMonApport() {
+async function retirerMesApports() {
   if (!table.value) return;
   savingApport.value = true;
   try {
-    table.value = await updateMyContribution(table.value.id, null);
-    toast.success('Apport retiré.');
+    table.value = await updateMyContributions(table.value.id, []);
+    changerOuverte.value = false;
+    toast.success('Apports retirés.');
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : 'Impossible de retirer l’apport.');
+    toast.error(e instanceof Error ? e.message : 'Impossible de retirer les apports.');
   } finally {
     savingApport.value = false;
   }
 }
 
 const changerOuverte = ref(false);
-const changerChoix = ref<string | null>(null);
-const changerLibre = ref('');
+const mesApports = ref<string[]>([]);
+const nouvelApport = ref('');
 
-function ouvrirChangement() {
-  changerChoix.value = table.value?.myParticipation?.contribution?.label ?? null;
-  changerLibre.value = '';
+const apportsLibres = computed(() => {
+  const labels = new Set(wanted.value.map((w) => w.label));
+  return mesApports.value.filter((l) => !labels.has(l));
+});
+
+function ouvrirMesApports() {
+  mesApports.value = (table.value?.myParticipation?.contributions ?? []).map((c) => c.label);
+  nouvelApport.value = '';
   changerOuverte.value = true;
 }
 
-async function enregistrerChangement() {
+function basculerApport(label: string) {
+  const i = mesApports.value.indexOf(label);
+  if (i >= 0) mesApports.value.splice(i, 1);
+  else mesApports.value.push(label);
+}
+
+function ajouterApport() {
+  const l = nouvelApport.value.trim();
+  if (l && !mesApports.value.includes(l)) mesApports.value.push(l);
+  nouvelApport.value = '';
+}
+
+function apportsDepuisSelection(): ContributionInput[] {
+  return mesApports.value.map((label) => {
+    const item = wanted.value.find((w) => w.label === label);
+    return { label, category: 'INGREDIENT', quantity: item?.quantity ?? undefined, unit: item?.unit ?? undefined };
+  });
+}
+
+async function enregistrerMesApports() {
   if (!table.value || savingApport.value) return;
-  const label = (changerLibre.value.trim() || changerChoix.value || '').trim();
-  if (!label) return;
   savingApport.value = true;
   try {
-    table.value = await updateMyContribution(table.value.id, { label, category: 'INGREDIENT' });
+    table.value = await updateMyContributions(table.value.id, apportsDepuisSelection());
     changerOuverte.value = false;
-    toast.success('Apport mis à jour.');
+    toast.success('Apports mis à jour.');
   } catch (e) {
     toast.error(e instanceof Error ? e.message : 'Mise à jour impossible.');
   } finally {
@@ -153,7 +176,7 @@ const canJoin = computed(
 );
 
 const participationOuverte = ref(false);
-const apportChoisi = ref<string | null>(null);
+const apportsChoisis = ref<string[]>([]);
 const apportLibre = ref('');
 const joining = ref(false);
 const idempotencyKey = crypto.randomUUID();
@@ -165,36 +188,30 @@ async function ouvrirParticipation() {
     await router.push('/profil');
     return;
   }
-  apportChoisi.value = wanted.value[0]?.label ?? null;
+  apportsChoisis.value = [];
   apportLibre.value = '';
   participationOuverte.value = true;
+}
+
+function basculerApportJoin(label: string) {
+  const i = apportsChoisis.value.indexOf(label);
+  if (i >= 0) apportsChoisis.value.splice(i, 1);
+  else apportsChoisis.value.push(label);
 }
 
 async function rejoindre() {
   if (!table.value || joining.value) return;
   const libre = apportLibre.value.trim();
-  let contribution: {
-    label: string;
-    category: ContributionCategory;
-    quantity?: number;
-    unit?: QuantityUnit;
-  };
-  if (libre) {
-    contribution = { label: libre, category: 'INGREDIENT' };
-  } else if (apportChoisi.value) {
-    const item = wanted.value.find((w) => w.label === apportChoisi.value);
-    contribution = {
-      label: item?.label ?? apportChoisi.value,
-      category: 'INGREDIENT',
-      quantity: item?.quantity ?? undefined,
-      unit: item?.unit ?? undefined,
-    };
-  } else {
-    contribution = { label: 'Je ne fais pas les courses', category: 'NONE' };
+  const contributions: ContributionInput[] = apportsChoisis.value.map((label) => {
+    const item = wanted.value.find((w) => w.label === label);
+    return { label, category: 'INGREDIENT', quantity: item?.quantity ?? undefined, unit: item?.unit ?? undefined };
+  });
+  if (libre && !contributions.some((c) => c.label === libre)) {
+    contributions.push({ label: libre, category: 'INGREDIENT' });
   }
   joining.value = true;
   try {
-    await joinTable(table.value.id, { contribution }, idempotencyKey);
+    await joinTable(table.value.id, { contributions }, idempotencyKey);
     await router.replace(`/tables/${table.value.id}/confirme`);
   } catch (e) {
     toast.error(e instanceof Error ? e.message : 'La participation a échoué.');
@@ -326,9 +343,14 @@ onMounted(async () => {
               {{ isHost ? 'Tu proposes ces ingrédients : tes voisins choisiront le leur.' : "Choisis ton ingrédient en rejoignant la tablée." }}
             </p>
             </div>
-            <Button v-if="isHost" type="button" variant="ghost" size="sm" @click="ouvrirEditionWanted">
-              Modifier
-            </Button>
+            <div v-if="isHost" class="flex shrink-0 gap-1">
+              <Button type="button" variant="ghost" size="sm" @click="ouvrirMesApports">
+                Marquer mes apports
+              </Button>
+              <Button type="button" variant="ghost" size="sm" @click="ouvrirEditionWanted">
+                Modifier
+              </Button>
+            </div>
           </div>
           <ul class="flex flex-col gap-2">
             <li
@@ -359,7 +381,7 @@ onMounted(async () => {
                 v-if="apporteur.get(ingredient.label.trim().toLowerCase())?.userId === monId"
                 type="button"
                 class="shrink-0 text-micro font-medium text-terracotta"
-                @click="ouvrirChangement"
+                @click="ouvrirMesApports"
               >
                 Changer
               </button>
@@ -379,7 +401,7 @@ onMounted(async () => {
                 v-if="contribution.participant?.id === monId"
                 type="button"
                 class="shrink-0 text-micro font-medium text-terracotta"
-                @click="ouvrirChangement"
+                @click="ouvrirMesApports"
               >
                 Changer
               </button>
@@ -427,11 +449,11 @@ onMounted(async () => {
                 :key="item.label"
                 type="button"
                 class="flex items-center justify-between rounded-xl border px-3 py-2.5 text-body-md text-ardoise"
-                :class="apportChoisi === item.label ? 'border-terracotta bg-terracotta/10' : 'border-ardoise/10'"
-                @click="apportChoisi = item.label; apportLibre = ''"
+                :class="apportsChoisis.includes(item.label) ? 'border-terracotta bg-terracotta/10' : 'border-ardoise/10'"
+                @click="basculerApportJoin(item.label)"
               >
                 <span>{{ item.label }}</span>
-                <Check v-if="apportChoisi === item.label" class="size-4 text-terracotta" :stroke-width="2.25" />
+                <Check v-if="apportsChoisis.includes(item.label)" class="size-4 text-terracotta" :stroke-width="2.25" />
               </button>
             </div>
 
@@ -440,14 +462,13 @@ onMounted(async () => {
               type="text"
               placeholder="J'apporte autre chose…"
               class="h-12 w-full rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
-              @input="apportChoisi = null"
             />
 
             <button
               type="button"
               class="rounded-xl border px-3 py-2.5 text-body-md"
-              :class="!apportChoisi && !apportLibre ? 'border-terracotta bg-terracotta/10 text-ardoise' : 'border-ardoise/10 text-ardoise'"
-              @click="apportChoisi = null; apportLibre = ''"
+              :class="!apportsChoisis.length && !apportLibre.trim() ? 'border-terracotta bg-terracotta/10 text-ardoise' : 'border-ardoise/10 text-ardoise'"
+              @click="apportsChoisis = []; apportLibre = ''"
             >
               Je ne fais pas les courses
             </button>
@@ -505,7 +526,7 @@ onMounted(async () => {
     <Drawer v-model:open="changerOuverte">
       <DrawerContent class="bg-creme">
         <DrawerHeader class="app-pad text-left">
-          <DrawerTitle class="text-title-lg font-titres text-sauge">Changer mon apport</DrawerTitle>
+          <DrawerTitle class="text-title-lg font-titres text-sauge">Mes apports</DrawerTitle>
         </DrawerHeader>
         <div class="app-pad flex flex-col gap-3 pb-8">
           <div v-if="wanted.length" class="flex flex-col gap-2">
@@ -514,25 +535,44 @@ onMounted(async () => {
               :key="item.label"
               type="button"
               class="flex items-center justify-between rounded-xl border px-3 py-2.5 text-body-md text-ardoise"
-              :class="changerChoix === item.label ? 'border-terracotta bg-terracotta/10' : 'border-ardoise/10'"
-              @click="changerChoix = item.label; changerLibre = ''"
+              :class="mesApports.includes(item.label) ? 'border-terracotta bg-terracotta/10' : 'border-ardoise/10'"
+              @click="basculerApport(item.label)"
             >
               <span>{{ item.label }}</span>
-              <Check v-if="changerChoix === item.label" class="size-4 text-terracotta" :stroke-width="2.25" />
+              <Check v-if="mesApports.includes(item.label)" class="size-4 text-terracotta" :stroke-width="2.25" />
             </button>
           </div>
-          <input
-            v-model="changerLibre"
-            type="text"
-            placeholder="J'apporte autre chose…"
-            class="h-12 w-full rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
-            @input="changerChoix = null"
-          />
-          <Button size="lg" class="w-full" :disabled="savingApport || (!changerChoix && !changerLibre.trim())" @click="enregistrerChangement">
+
+          <div v-if="apportsLibres.length" class="flex flex-wrap gap-2">
+            <button
+              v-for="label in apportsLibres"
+              :key="label"
+              type="button"
+              class="rounded-full border border-terracotta/30 bg-terracotta/10 px-3 py-1.5 text-label-md text-terracotta"
+              @click="basculerApport(label)"
+            >
+              {{ label }} ✕
+            </button>
+          </div>
+
+          <div class="flex gap-2">
+            <input
+              v-model="nouvelApport"
+              type="text"
+              placeholder="J'apporte autre chose…"
+              class="h-12 flex-1 rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
+              @keydown.enter.prevent="ajouterApport"
+            />
+            <Button type="button" variant="secondary" size="default" @click="ajouterApport">
+              <Plus class="size-4" />
+            </Button>
+          </div>
+
+          <Button size="lg" class="w-full" :disabled="savingApport" @click="enregistrerMesApports">
             {{ savingApport ? 'Enregistrement…' : 'Enregistrer' }}
           </Button>
-          <Button type="button" variant="ghost" size="default" class="w-full text-terracotta" :disabled="savingApport" @click="retirerMonApport">
-            Retirer mon apport
+          <Button type="button" variant="ghost" size="default" class="w-full text-terracotta" :disabled="savingApport" @click="retirerMesApports">
+            Tout retirer
           </Button>
         </div>
       </DrawerContent>
