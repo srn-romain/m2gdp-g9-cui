@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarClock, Check, MapPin, Plus, Share2, Trash2, TriangleAlert, Users } from '@lucide/vue';
+import { CalendarClock, Check, MapPin, Plus, Share2, Trash2, Users } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { dishPhotoUrl } from '@/lib/dishPhoto';
 import {
+  DIETARY_OPTIONS,
   formatDistance,
   formatDay,
   formatIngredientQuantity,
@@ -38,6 +39,13 @@ const title = computed(() => (table.value ? tableTitle(table.value) : ''));
 const contributions = computed(() => table.value?.contributions ?? []);
 const wanted = computed(() => table.value?.wantedContributions ?? []);
 const isHost = computed(() => table.value?.myParticipation?.role === 'HOST');
+const regimesLabels = computed(() => {
+  const labels = (table.value?.dietaryTags ?? [])
+    .map((tag) => DIETARY_OPTIONS.find((option) => option.value === tag)?.label ?? tag)
+    .filter(Boolean);
+  if (!labels.length && table.value?.isVegetarian) labels.push('Végétarien');
+  return labels;
+});
 const apporteur = computed(() => {
   const map = new Map<string, { firstName: string; userId: string }>();
   for (const c of contributions.value) {
@@ -62,6 +70,7 @@ const savingWanted = ref(false);
 const savingApport = ref(false);
 
 function ouvrirEditionWanted() {
+  if (isPast.value) return;
   draftWanted.value = wanted.value.map((w) => ({ ...w }));
   nouvelIngredient.value = '';
   editWantedOpen.value = true;
@@ -79,7 +88,7 @@ function retirerIngredient(index: number) {
 }
 
 async function enregistrerWanted() {
-  if (!table.value) return;
+  if (!table.value || isPast.value) return;
   savingWanted.value = true;
   try {
     table.value = await updateWantedContributions(table.value.id, draftWanted.value);
@@ -93,7 +102,7 @@ async function enregistrerWanted() {
 }
 
 async function retirerMesApports() {
-  if (!table.value) return;
+  if (!table.value || isPast.value) return;
   savingApport.value = true;
   try {
     table.value = await updateMyContributions(table.value.id, []);
@@ -116,6 +125,7 @@ const apportsLibres = computed(() => {
 });
 
 function ouvrirMesApports() {
+  if (isPast.value) return;
   mesApports.value = (table.value?.myParticipation?.contributions ?? []).map((c) => c.label);
   nouvelApport.value = '';
   changerOuverte.value = true;
@@ -141,7 +151,7 @@ function apportsDepuisSelection(): ContributionInput[] {
 }
 
 async function enregistrerMesApports() {
-  if (!table.value || savingApport.value) return;
+  if (!table.value || savingApport.value || isPast.value) return;
   savingApport.value = true;
   try {
     table.value = await updateMyContributions(table.value.id, apportsDepuisSelection());
@@ -156,7 +166,7 @@ async function enregistrerMesApports() {
 
 const leaving = ref(false);
 async function seRetirer() {
-  if (!table.value || leaving.value) return;
+  if (!table.value || leaving.value || isPast.value) return;
   leaving.value = true;
   try {
     await leaveTable(table.value.id);
@@ -178,10 +188,12 @@ const canJoin = computed(
 const participationOuverte = ref(false);
 const apportsChoisis = ref<string[]>([]);
 const apportLibre = ref('');
+const sansCourses = ref(false);
 const joining = ref(false);
 const idempotencyKey = crypto.randomUUID();
 
 async function ouvrirParticipation() {
+  if (isPast.value) return;
   await meStore.load();
   if (!meStore.isOnboarded) {
     toast.info('Complète ton profil pour participer.');
@@ -190,24 +202,30 @@ async function ouvrirParticipation() {
   }
   apportsChoisis.value = [];
   apportLibre.value = '';
+  sansCourses.value = false;
   participationOuverte.value = true;
 }
 
 function basculerApportJoin(label: string) {
+  sansCourses.value = false;
   const i = apportsChoisis.value.indexOf(label);
   if (i >= 0) apportsChoisis.value.splice(i, 1);
   else apportsChoisis.value.push(label);
 }
 
 async function rejoindre() {
-  if (!table.value || joining.value) return;
-  const libre = apportLibre.value.trim();
-  const contributions: ContributionInput[] = apportsChoisis.value.map((label) => {
-    const item = wanted.value.find((w) => w.label === label);
-    return { label, category: 'INGREDIENT', quantity: item?.quantity ?? undefined, unit: item?.unit ?? undefined };
-  });
-  if (libre && !contributions.some((c) => c.label === libre)) {
-    contributions.push({ label: libre, category: 'INGREDIENT' });
+  if (!table.value || joining.value || isPast.value) return;
+  const contributions: ContributionInput[] = sansCourses.value
+    ? []
+    : apportsChoisis.value.map((label) => {
+        const item = wanted.value.find((w) => w.label === label);
+        return { label, category: 'INGREDIENT', quantity: item?.quantity ?? undefined, unit: item?.unit ?? undefined };
+      });
+  if (!sansCourses.value) {
+    const libre = apportLibre.value.trim();
+    if (libre && !contributions.some((c) => c.label === libre)) {
+      contributions.push({ label: libre, category: 'INGREDIENT' });
+    }
   }
   joining.value = true;
   try {
@@ -296,12 +314,8 @@ onMounted(async () => {
         </p>
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <Badge v-if="table.isVegetarian" variant="outline" class="text-label-sm text-secondaire">
-            Végétarien
-          </Badge>
-          <Badge v-if="table.hasAllergenNotice" variant="outline" class="text-label-sm text-secondaire">
-            <TriangleAlert class="size-3.5" :stroke-width="2" />
-            Allergènes indiqués
+          <Badge v-for="label in regimesLabels" :key="label" variant="outline" class="text-label-sm text-secondaire">
+            {{ label }}
           </Badge>
           <Badge variant="outline" class="text-label-sm text-secondaire">
             {{ formatSeats(table.seatsAvailable) }}
@@ -336,14 +350,9 @@ onMounted(async () => {
         <Separator />
 
         <section v-if="wanted.length" class="flex flex-col gap-3">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex flex-col gap-1">
-            <h2 class="text-body-lg-strong text-ardoise">Ce que les invités apportent</h2>
-            <p class="text-body-sm text-secondaire">
-              {{ isHost ? 'Tu proposes ces ingrédients : tes voisins choisiront le leur.' : "Choisis ton ingrédient en rejoignant la tablée." }}
-            </p>
-            </div>
-            <div v-if="isHost" class="flex shrink-0 gap-1">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-label-md text-secondaire">À apporter</p>
+            <div v-if="isHost && !isPast" class="flex shrink-0 gap-1">
               <Button type="button" variant="ghost" size="sm" @click="ouvrirMesApports">
                 Marquer mes apports
               </Button>
@@ -378,7 +387,7 @@ onMounted(async () => {
                 <span v-else class="text-micro text-secondaire">À pourvoir</span>
               </span>
               <button
-                v-if="apporteur.get(ingredient.label.trim().toLowerCase())?.userId === monId"
+                v-if="!isPast && apporteur.get(ingredient.label.trim().toLowerCase())?.userId === monId"
                 type="button"
                 class="shrink-0 text-micro font-medium text-terracotta"
                 @click="ouvrirMesApports"
@@ -398,7 +407,7 @@ onMounted(async () => {
                 <span class="text-micro text-sauge-fonce">Apporté par {{ contribution.participant?.firstName }}</span>
               </span>
               <button
-                v-if="contribution.participant?.id === monId"
+                v-if="!isPast && contribution.participant?.id === monId"
                 type="button"
                 class="shrink-0 text-micro font-medium text-terracotta"
                 @click="ouvrirMesApports"
@@ -412,7 +421,15 @@ onMounted(async () => {
       </div>
 
       <div class="app-pad mt-auto flex flex-col gap-3 pt-6">
-        <template v-if="isHost">
+        <template v-if="isPast">
+          <Button v-if="isHost || joined" as-child size="lg" variant="secondary" class="w-full">
+            <RouterLink :to="`/messages/${table.id}`">Voir les messages</RouterLink>
+          </Button>
+          <Button size="lg" class="w-full" disabled>
+            Tablée passée
+          </Button>
+        </template>
+        <template v-else-if="isHost">
           <Button size="lg" variant="secondary" class="w-full" @click="partager">
             <Share2 data-icon="inline-start" />
             Partager la tablée
@@ -462,18 +479,25 @@ onMounted(async () => {
               type="text"
               placeholder="J'apporte autre chose…"
               class="h-12 w-full rounded-xl border border-ardoise/10 bg-surface px-3 text-body-md text-ardoise outline-none focus:border-terracotta"
+              @input="sansCourses = false"
             />
 
             <button
               type="button"
               class="rounded-xl border px-3 py-2.5 text-body-md"
-              :class="!apportsChoisis.length && !apportLibre.trim() ? 'border-terracotta bg-terracotta/10 text-ardoise' : 'border-ardoise/10 text-ardoise'"
-              @click="apportsChoisis = []; apportLibre = ''"
+              :class="sansCourses ? 'border-terracotta bg-terracotta/10 text-ardoise' : 'border-ardoise/10 text-ardoise'"
+              :aria-pressed="sansCourses"
+              @click="apportsChoisis = []; apportLibre = ''; sansCourses = true"
             >
               Je ne fais pas les courses
             </button>
 
-            <Button size="lg" class="w-full" :disabled="joining" @click="rejoindre">
+            <Button
+              size="lg"
+              class="w-full"
+              :disabled="joining || (!apportsChoisis.length && !apportLibre.trim() && !sansCourses)"
+              @click="rejoindre"
+            >
               {{ joining ? 'Envoi…' : 'Confirmer ma participation' }}
             </Button>
           </div>

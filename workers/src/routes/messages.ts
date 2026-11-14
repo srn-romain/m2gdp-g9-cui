@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { apiError } from '../errors';
 import { parsePagination, pageOf } from '../pagination';
 import { requireAuth } from '../auth';
-import { newId, nowIso, toMessageJson, type MessageRow } from '../models';
+import { isPassed, newId, nowIso, toMessageJson, type MessageRow } from '../models';
 
 export const messagesRoutes = new Hono<{ Bindings: Env }>();
 
@@ -60,9 +60,12 @@ messagesRoutes.post('/tables/:tableId/messages', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
   const tableId = c.req.param('tableId');
-  const t = await c.env.DB.prepare('SELECT id, status FROM tables WHERE id = ?').bind(tableId).first<{ id: string; status: string }>();
+  const t = await c.env.DB.prepare('SELECT id, status, startsAt, durationMinutes FROM tables WHERE id = ?').bind(tableId)
+    .first<{ id: string; status: string; startsAt: string; durationMinutes: number }>();
   if (!t) return apiError('NOT_FOUND', 'Tablee introuvable.');
-  if (t.status === 'CANCELLED' || t.status === 'PASSED') return apiError('FORBIDDEN', 'Fil en lecture seule.');
+  if (t.status === 'CANCELLED' || t.status === 'PASSED' || isPassed(t.startsAt, t.durationMinutes)) {
+    return apiError('FORBIDDEN', 'Fil en lecture seule.');
+  }
   const access = await canRead(c.env.DB, tableId, auth.userId);
   if (access !== 'ok') return apiError('FORBIDDEN', 'Fil reserve aux participants confirmes.');
   const b = await c.req.json().catch(() => null) as { type?: string; text?: string; audioUrl?: string; imageUrl?: string; durationSeconds?: number } | null;

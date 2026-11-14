@@ -218,6 +218,16 @@
   .app-pad {
     padding-inline: 1.25rem;
   }
+
+  /* Défilement horizontal sans barre visible (Chrome, Safari, Firefox, Edge).
+     Le tactile et la molette continuent de fonctionner ; seule la barre est masquée. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------------------------

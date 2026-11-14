@@ -55,21 +55,30 @@ participationsRoutes.post('/tables/:tableId/participations', async (c) => {
   const t = await c.env.DB.prepare('SELECT * FROM tables WHERE id = ?').bind(tableId)
     .first<{ id: string; status: string; startsAt: string; durationMinutes: number; seatsTotal: number }>();
   if (!t) return apiError('NOT_FOUND', 'Tablee introuvable.');
-  const dupe = await c.env.DB.prepare('SELECT id FROM participations WHERE tableId = ? AND userId = ?')
-    .bind(tableId, auth.userId).first();
-  if (dupe) return apiError('ALREADY_PARTICIPATING', 'Vous participez deja a cette tablee.');
+  const existing = await c.env.DB.prepare('SELECT id, role, status FROM participations WHERE tableId = ? AND userId = ?')
+    .bind(tableId, auth.userId).first<{ id: string; role: string; status: string }>();
+  if (existing?.status === 'CONFIRMED') return apiError('ALREADY_PARTICIPATING', 'Vous participez deja a cette tablee.');
   if (t.status === 'CANCELLED') return apiError('TABLE_CLOSED', 'Tablee annulee.');
   if (t.status === 'PASSED' || isPassed(t.startsAt, t.durationMinutes)) return apiError('TABLE_PASSED', 'Tablee passee.');
-  if (isPassed(t.startsAt, t.durationMinutes)) return apiError('TABLE_PASSED', 'Tablee passee.');
   const seats = t.seatsTotal - await guestConfirmedCount(c.env.DB, tableId);
   if (t.status !== 'OPEN' || seats < 1) return apiError('TABLE_FULL', 'Cette tablee est complete.');
   const b = await c.req.json().catch(() => null) as { contributions?: unknown } | null;
   const apports = normaliserApports(b?.contributions);
   if (!apports) return apiError('VALIDATION_ERROR', 'contributions invalide.', { field: 'contributions' });
-  const pid = newId(), now = nowIso();
-  const stmts = [
-    c.env.DB.prepare("INSERT INTO participations (id, tableId, userId, role, status, joinedAt) VALUES (?, ?, ?, 'GUEST', 'CONFIRMED', ?)").bind(pid, tableId, auth.userId, now),
-  ];
+  const now = nowIso();
+  const pid = existing ? existing.id : newId();
+  const stmts: D1PreparedStatement[] = [];
+  if (existing) {
+    // Retour 6 : réactive une participation annulée au lieu de bloquer (UNIQUE tableId+userId).
+    stmts.push(
+      c.env.DB.prepare("UPDATE participations SET status = 'CONFIRMED', joinedAt = ? WHERE id = ?").bind(now, pid),
+      c.env.DB.prepare('DELETE FROM contributions WHERE participationId = ?').bind(pid),
+    );
+  } else {
+    stmts.push(
+      c.env.DB.prepare("INSERT INTO participations (id, tableId, userId, role, status, joinedAt) VALUES (?, ?, ?, 'GUEST', 'CONFIRMED', ?)").bind(pid, tableId, auth.userId, now),
+    );
+  }
   for (const a of apports) {
     stmts.push(
       c.env.DB.prepare("INSERT INTO contributions (id, participationId, label, quantity, unit, category, status) VALUES (?, ?, ?, ?, ?, ?, 'PROPOSED')")
@@ -79,7 +88,7 @@ participationsRoutes.post('/tables/:tableId/participations', async (c) => {
   if (idem) stmts.push(c.env.DB.prepare('INSERT INTO idempotency_keys (key, userId, tableId, participationId, createdAt) VALUES (?, ?, ?, ?, ?)').bind(idem, auth.userId, tableId, pid, now));
   await c.env.DB.batch(stmts);
   const p = await c.env.DB.prepare('SELECT * FROM participations WHERE id = ?').bind(pid).first();
-  return c.json({ ...(p as object), contributions: apports.map((a) => ({ ...a, status: 'PROPOSED' })) }, 201);
+  return c.json({ ...(p as object), contributions: apports.map((a) => ({ ...a, status: 'PROPOSED' })) }, existing ? 200 : 201);
 });
 
 participationsRoutes.delete('/tables/:tableId/participations/me', async (c) => {
@@ -90,6 +99,11 @@ participationsRoutes.delete('/tables/:tableId/participations/me', async (c) => {
     .bind(tableId, auth.userId).first<{ id: string; role: string }>();
   if (!p) return apiError('NOT_FOUND', 'Participation introuvable.');
   if (p.role === 'HOST') return apiError('HOST_CANNOT_LEAVE', "L'hote ne quitte pas, il annule.");
+  const tb = await c.env.DB.prepare('SELECT status, startsAt, durationMinutes FROM tables WHERE id = ?').bind(tableId)
+    .first<{ status: string; startsAt: string; durationMinutes: number }>();
+  if (tb && (tb.status === 'PASSED' || isPassed(tb.startsAt, tb.durationMinutes))) {
+    return apiError('TABLE_PASSED', 'Tablee passee.');
+  }
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE participations SET status = 'CANCELLED' WHERE id = ?").bind(p.id),
     c.env.DB.prepare('DELETE FROM contributions WHERE participationId = ?').bind(p.id),
@@ -105,6 +119,12 @@ participationsRoutes.patch('/tables/:tableId/contributions/me', async (c) => {
     "SELECT id FROM participations WHERE tableId = ? AND userId = ? AND status = 'CONFIRMED'",
   ).bind(tableId, auth.userId).first<{ id: string }>();
   if (!p) return apiError('FORBIDDEN', 'Seuls les participants confirmes apportent quelque chose.');
+  const tb = await c.env.DB.prepare('SELECT status, startsAt, durationMinutes FROM tables WHERE id = ?').bind(tableId)
+    .first<{ status: string; startsAt: string; durationMinutes: number }>();
+  if (!tb) return apiError('NOT_FOUND', 'Tablee introuvable.');
+  if (tb.status === 'PASSED' || isPassed(tb.startsAt, tb.durationMinutes)) {
+    return apiError('TABLE_PASSED', 'Tablee passee.');
+  }
   const b = await c.req.json().catch(() => null) as { contributions?: unknown } | null;
   const apports = normaliserApports(b?.contributions);
   if (!apports) return apiError('VALIDATION_ERROR', 'contributions invalide.', { field: 'contributions' });

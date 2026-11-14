@@ -3,6 +3,7 @@ export interface Env {
   FILES: R2Bucket;
   AI: Ai;
   GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
   SUPABASE_URL?: string;
   R2_ACCOUNT_ID?: string;
   R2_ACCESS_KEY_ID?: string;

@@ -1,0 +1,151 @@
+Recueil et vérification des retours — Romain (PDF « Retour Romain app La bonne Tablée »)
+Date de vérification : 2026-11-12
+Légende : [OK] corrigé/déjà géré · [BUG] à corriger · [DISC] à discuter · [VERIF] à confirmer
+
+--------------------------------------------------------------------------------
+
+Retour 1 — Tablées passées masquées ou catégorie à part
+Statut : [OK]
+L'accueil possède déjà une section « Passées » distincte. L'explorer n'affiche
+que les tablées OPEN/FULL (les passées sont exclues côté API). Comportement
+conforme à la demande.
+
+bug corriger
+
+--------------------------------------------------------------------------------
+
+Retour 2 — Autocomplétion de repas qui n'existe pas + « pas de repas trouvé » lent
+Statut : [VERIF]
+L'autocomplétion est lexicale sur les noms réellement présents en base
+(/tables/suggestions). Le fallback « Essaie plutôt » utilise /tables/popular
+(plats existants) + une suggestion IA limitée au catalogue de la base.
+Point restant : le chargement peut être long quand l'IA (Gemini) est appelée en
+fallback. À optimiser (timeout/raccourcir le parcours) si cela persiste.
+
+
+commentaire: l'auto complexion, pose le proble de es ce que les suggetion doit obligatoire doit etre dans la liste des tablee? car deerrier l'auto complexion, si lautilisateur ne trouve pas, l'ai prend le controle et suggere des repas. si on pas du principe que le la suggesion doit obligatoire etre dans notre liste alors je reliere l'ia. je ce qui sous attend que si l'utilisateur tape un repas qui n'existe, la page sera vide.
+
+
+--------------------------------------------------------------------------------
+
+Retour 3 — Double croix dans le champ recherche
+Statut : [BUG]
+Le champ est en `type="search"` (croix native du navigateur) ET il y a une croix
+personnalisée « Effacer la recherche ». Les deux peuvent s'afficher en même temps.
+Correction : passer en type text (ou masquer la croix native) pour n'en garder qu'une.
+
+ commentaire : corrige
+
+--------------------------------------------------------------------------------
+
+Retour 4 — Impossible de sélectionner plusieurs ingrédients à la fois
+Statut : [DISC]
+Le modèle actuel applique R5 : une contribution (0..1) par participation.
+Un invité choisit donc un seul ingrédient. Autoriser plusieurs apports par
+participant nécessite de faire évoluer le modèle (participation -> 1..N
+contributions) et l'OpenAPI. À trancher avec le PO.
+
+corriger
+
+--------------------------------------------------------------------------------
+
+Retour 5 — Participer à une tablée sans cuisiner (venir juste pour manger)
+Statut : [OK]
+L'option « Je ne fais pas les courses » (catégorie NONE) existe dans le tiroir de
+participation. L'invité peut rejoindre sans apport.
+
+la particpation sans rien apporter exitse deja. l'option je ne fais les course gere ce cas deja.
+
+--------------------------------------------------------------------------------
+
+Retour 6 — Se retirer puis se réinscrire -> « déjà inscrit » bloquant
+Statut : [BUG]
+Confirmé dans le code : POST /tables/:id/participations vérifie les doublons par
+`tableId + userId` SANS filtrer le statut. Une participation annulée
+(CANCELLED) est donc encore considérée comme « déjà inscrit », alors que le
+DELETE la marque bien annulée. Correction : ne considérer comme doublon que les
+participations CONFIRMED (ou réactiver la participation annulée).
+
+corriger
+
+--------------------------------------------------------------------------------
+
+Retour 7 — Flèche « Ce soir » inutile + icône du bouton rayon ambiguë
+Statut : [BUG] (cosmétique)
+Le bouton « Ce soir » affiche un chevron bas alors que c'est un simple toggle
+(pas de liste déroulante). Le bouton « < X km » affiche « < » qui peut évoquer
+une flèche gauche alors qu'il ouvre un tiroir. Correction : retirer le chevron du
+bouton « Ce soir » et clarifier l'icône du bouton rayon.
+
+corriger
+
+--------------------------------------------------------------------------------
+
+Retour 8 — Sauvegarde des filtres entre les pages
+Statut : [DISC]
+Actuellement les filtres de l'explorer sont réinitialisés à chaque navigation.
+La persistance (localStorage ou query params) est à discuter et à implémenter.
+
+corriger
+
+--------------------------------------------------------------------------------
+
+Retour 9 — Navbar absente dans la conversation et dans « Voir tout »
+Statut : [BUG]
+Les routes /messages/:id, /autour et /avenir n'ont pas `meta.tabs`, donc la barre
+de navigation du bas est masquée. Correction : ajouter `tabs: true` sur ces
+routes (sauf si l'on souhaite volontairement une vue plein écran).
+
+c'est un comportement normal. prend les app classique de message qui on navbar, quqnd tu navigue a une certaine profdondeur la nave bar dispairai. ce n'est pas un bug mais c'est une design conventionnel qui facile la noviagtion, prend whatsap, instagram, facebok et ou n'importe quel app avec des nav bar tu verra ce comporteement. d'autant plus que le chat a des menu button en bas, le chamms inpou et image et button send, il y ara uen confision avec une navbar de plus
+
+--------------------------------------------------------------------------------
+
+Retour 10 — « Voir tout » liste beaucoup de tablées, la carte n'en montre que 8
+Statut : [VERIF]
+La liste « Autour de chez toi » charge jusqu'à 100 tablées ; la carte de
+l'explorer est limitée par la pagination (20) et le rayon par défaut (2 km),
+d'où l'écart. Il faut décider si la carte doit afficher le même ensemble (rayon
+élargi / pagination supérieure).
+
+c'est un comportement noal attendu, dans explore des filtre son ajoute par contre dans voir tout tu vois tout par le plus proche au plus eloigne
+
+--------------------------------------------------------------------------------
+
+Retour 11 — Impossible de supprimer la photo de profil
+Statut : [BUG]
+Le profil permet de changer la photo mais pas de la supprimer. Correction :
+ajouter une action « Supprimer la photo » (PATCH /me avec avatarUrl: null) dans
+le profil.
+
+
+la photo fais parti des info oblogatoire ddans la validation du prodil avant de fait quoi que ce soit. sdonc donne la possiblier de supprimer je ne sais pas si c'est l'ideal. c'esyt une app de rencontre en debit de tout, donc le meix c'est de laissser une photo pour rassure les un et les autre
+--------------------------------------------------------------------------------
+
+Retour 12 — Masquer la navbar horizontale (scroller horizontalement)
+Statut : [DISC]
+Point de design à trancher avec le prof : conserver la navigation par onglets ou
+privilégier le scroll horizontal des suggestions. Aucun changement appliqué.
+
+
+ce comportement j'ai du mal a fixe, cart sur mon systeme je ne vois pas cette barre, n'oublier pas que c'esy une app mobile first et a cote de tester sur pc, tester aussi sur mobile pour voir si vous avez le meme comportement.
+dans le lien final j'aimerais vien quon ajoute une note au prof pourquil fasse ;la part des chose pendant ces test.
+
+--------------------------------------------------------------------------------
+
+Retour 13 — Identification/inscription : compléter le pseudo avant tout parcours
+Statut : [OK]
+Déjà en place : l'onboarding exige prénom, nom, adresse et photo de profil ;
+la barre de navigation est grisée et les actions bloquées tant que le profil
+n'est pas complet. À vérifier que le « pseudo » (prénom) demandé correspond bien
+au champ existant.
+
+corriger
+
+--------------------------------------------------------------------------------
+
+Priorité de correction suggérée (bugs confirmés) :
+1. Retour 6 (réinscription bloquée) — impact fonctionnel fort.
+2. Retour 9 (navbar absente) — navigation.
+3. Retour 3 (double croix) — cosmétique recherche.
+4. Retour 11 (suppression photo) — profil.
+5. Retour 7 (icônes de filtres) — cosmétique.

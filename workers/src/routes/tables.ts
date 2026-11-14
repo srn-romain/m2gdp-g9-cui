@@ -246,22 +246,20 @@ tablesRoutes.get('/suggestions', async (c) => {
     return c.json({ data: { dishes: [], neighborhoods: [], cities: [] } });
   }
   const term = q.toLowerCase();
-  const dishes = await c.env.DB.prepare(
-    "SELECT DISTINCT dishName AS value FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(dishName), lower(?)) > 0 ORDER BY dishName LIMIT 8",
-  ).bind(term).all<{ value: string }>();
-  const neighborhoods = await c.env.DB.prepare(
-    "SELECT DISTINCT neighborhood AS value FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(neighborhood), lower(?)) > 0 ORDER BY neighborhood LIMIT 8",
-  ).bind(term).all<{ value: string }>();
-  const cities = await c.env.DB.prepare(
-    "SELECT DISTINCT city AS value FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(city), lower(?)) > 0 ORDER BY city LIMIT 8",
-  ).bind(term).all<{ value: string }>();
-  return c.json({
-    data: {
-      dishes: (dishes.results ?? []).map((r) => r.value),
-      neighborhoods: (neighborhoods.results ?? []).map((r) => r.value),
-      cities: (cities.results ?? []).map((r) => r.value),
-    },
-  });
+  // Autocomplétion strictement déterministe : seuls les noms de plats réellement
+  // en base, sur des tablées ni annulées ni passées (statut + horaire réel).
+  const plats = await c.env.DB.prepare(
+    "SELECT dishName AS value, startsAt, durationMinutes FROM tables WHERE status IN ('OPEN','FULL') AND instr(lower(dishName), lower(?)) > 0 ORDER BY dishName LIMIT 40",
+  ).bind(term).all<{ value: string; startsAt: string; durationMinutes: number }>();
+  const vus = new Set<string>();
+  const dishes: string[] = [];
+  for (const ligne of plats.results ?? []) {
+    if (isPassed(ligne.startsAt, ligne.durationMinutes) || vus.has(ligne.value)) continue;
+    vus.add(ligne.value);
+    dishes.push(ligne.value);
+    if (dishes.length >= 8) break;
+  }
+  return c.json({ data: { dishes } });
 });
 
 tablesRoutes.get('/popular', async (c) => {
@@ -294,9 +292,13 @@ tablesRoutes.patch('/:tableId/wanted-contributions', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
   const tableId = c.req.param('tableId');
-  const t = await c.env.DB.prepare('SELECT hostId FROM tables WHERE id = ?').bind(tableId).first<{ hostId: string }>();
+  const t = await c.env.DB.prepare('SELECT hostId, status, startsAt, durationMinutes FROM tables WHERE id = ?').bind(tableId)
+    .first<{ hostId: string; status: string; startsAt: string; durationMinutes: number }>();
   if (!t) return apiError('NOT_FOUND', 'Tablee introuvable.');
   if (t.hostId !== auth.userId) return apiError('FORBIDDEN', "Seul l'hote modifie la liste de courses.");
+  if (t.status === 'PASSED' || isPassed(t.startsAt, t.durationMinutes)) {
+    return apiError('TABLE_PASSED', 'Tablee passee.');
+  }
   const b = await c.req.json().catch(() => null) as { wantedContributions?: unknown } | null;
   const wanted = parseWanted(b?.wantedContributions);
   if (!wanted) return apiError('VALIDATION_ERROR', 'wantedContributions invalide.', { field: 'wantedContributions' });

@@ -21,13 +21,148 @@ function extraireJson(texte: unknown): unknown {
   }
 }
 
+/** Nettoie une éventuelle mise en forme autour d'une ligne marqueur. */
+function nettoyerMarqueur(ligne: string): string {
+  return ligne.trim().replace(/[*_~`#]+/g, '').trim();
+}
+
+/** Ligne « AMBIANCE : » avec ou sans mise en forme, contenu éventuel après « : ». */
+function lireMarqueurAmbiance(ligne: string): { marqueur: boolean; suite: string } {
+  const nettoyee = nettoyerMarqueur(ligne);
+  if (/^ambiance$/i.test(nettoyee)) return { marqueur: true, suite: '' };
+  const m = /^ambiance\s*:\s*(.+)?$/i.exec(nettoyee);
+  if (!m) return { marqueur: false, suite: '' };
+  return { marqueur: true, suite: (m[1] ?? '').trim() };
+}
+
+/**
+ * Tronque à max caractères en coupant à la dernière fin de phrase si possible.
+ */
+export function tronquerTexte(texte: string, max: number): string {
+  const propre = texte.trim().replace(/\s+/g, ' ');
+  if (propre.length <= max) return propre;
+  const coupe = propre.slice(0, max);
+  if (/[.!?]$/.test(coupe)) return coupe;
+  const finPhrase = Math.max(coupe.lastIndexOf('. '), coupe.lastIndexOf('! '), coupe.lastIndexOf('? '));
+  if (finPhrase >= Math.floor(max * 0.4)) return coupe.slice(0, finPhrase + 1).trim();
+  return coupe.trim();
+}
+
+/**
+ * Lit le premier objet JSON à partir d'une ligne, même indenté sur plusieurs
+ * lignes : on avance jusqu'à équilibre des accolades (hors chaînes).
+ */
+function lirePremierJson(lignes: string[], depart: number): { data: Record<string, unknown> | null; fin: number } {
+  let texte = '';
+  let profondeur = 0;
+  let dansChaine = false;
+  let echappe = false;
+  let commence = false;
+  for (let i = depart; i < lignes.length; i++) {
+    for (const car of lignes[i]) {
+      if (dansChaine) {
+        if (echappe) echappe = false;
+        else if (car === '\\') echappe = true;
+        else if (car === '"') dansChaine = false;
+      } else if (car === '"') {
+        dansChaine = true;
+      } else if (car === '{') {
+        profondeur++;
+        commence = true;
+      } else if (car === '}') {
+        profondeur--;
+      }
+      if (commence) texte += car;
+      if (commence && profondeur === 0 && !dansChaine) {
+        try {
+          return { data: JSON.parse(texte) as Record<string, unknown>, fin: i };
+        } catch {
+          return { data: null, fin: i };
+        }
+      }
+    }
+    if (commence) texte += '\n';
+  }
+  return { data: null, fin: lignes.length - 1 };
+}
+
+/**
+ * Découpe la réponse IA en trois morceaux : le premier objet JSON (nom,
+ * ingrédients, places, durée, sur une ou plusieurs lignes), puis le paragraphe
+ * du plat, puis — après la ligne « AMBIANCE : » — le paragraphe d'ambiance.
+ * Les retours à la ligne parasites sont fusionnés pour garder un seul paragraphe.
+ */
+export function extraireBrouillon(texte: unknown): {
+  data: Record<string, unknown> | null;
+  description: string | null;
+  ambiance: string | null;
+} {
+  const vide = {
+    data: null as Record<string, unknown> | null,
+    description: null as string | null,
+    ambiance: null as string | null,
+  };
+  if (typeof texte !== 'string') return vide;
+  const lignes = texte.replace(/```json|```/g, '').split('\n');
+  const idxJson = lignes.findIndex((l) => l.trim() !== '');
+  if (idxJson < 0) return vide;
+  const lu = lirePremierJson(lignes, idxJson);
+  let data = lu.data;
+  let debut = lu.fin + 1;
+  if (!data) {
+    // Repli : ancienne forme JSON complète.
+    const complet = extraireJson(texte) as Record<string, unknown> | null;
+    if (complet) {
+      return {
+        data: complet,
+        description: typeof complet.description === 'string' ? complet.description : null,
+        ambiance: typeof complet.ambiance === 'string' ? complet.ambiance : null,
+      };
+    }
+    // Sans JSON : on tente quand même la découpe par marqueur.
+    debut = idxJson;
+  }
+  const lignesDescription: string[] = [];
+  const lignesAmbiance: string[] = [];
+  let dansAmbiance = false;
+  let marqueurTrouve = false;
+  for (const ligne of lignes.slice(debut)) {
+    const { marqueur, suite } = lireMarqueurAmbiance(ligne);
+    if (marqueur && !dansAmbiance) {
+      dansAmbiance = true;
+      marqueurTrouve = true;
+      if (suite) lignesAmbiance.push(suite);
+      continue;
+    }
+    const propre = ligne.trim();
+    if (!propre) continue;
+    (dansAmbiance ? lignesAmbiance : lignesDescription).push(propre);
+  }
+  if (!data && !marqueurTrouve) return vide;
+  return {
+    data,
+    description:
+      lignesDescription.length
+        ? lignesDescription.join(' ')
+        : typeof data?.description === 'string'
+          ? data.description
+          : null,
+    ambiance:
+      lignesAmbiance.length
+        ? lignesAmbiance.join(' ')
+        : typeof data?.ambiance === 'string'
+          ? data.ambiance
+          : null,
+  };
+}
+
 async function generer(c: { env: Env }, messages: Array<{ role: string; content: string }>): Promise<string | null> {
   try {
     if (!c.env.AI) return null;
     const resultat = (await Promise.race([
       c.env.AI.run(MODELE as string, {
         messages,
-        max_tokens: 500,
+        max_tokens: 900,
       }) as Promise<{ response?: string }>,
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
     ])) as { response?: unknown } | null;
@@ -38,41 +173,65 @@ async function generer(c: { env: Env }, messages: Array<{ role: string; content:
   }
 }
 
-const MODELE_GEMINI = 'gemini-3.8-flash';
+/**
+ * Chaîne de modèles Gemini essayés dans l'ordre : le premier qui répond gagne.
+ * `GEMINI_MODEL` (secret/env) permet d'imposer un modèle en tête de liste.
+ */
+export function modelesGemini(env: Env): string[] {
+  const force = (env.GEMINI_MODEL ?? '').trim();
+  const defaut = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+  return [...new Set([force, ...defaut].filter(Boolean))];
+}
 
-/** Appel à l'API Gemini (clé fournie par Google AI Studio, stockée en secret Worker). */
-async function genererGemini(c: { env: Env }, messages: Array<{ role: string; content: string }>): Promise<string | null> {
+/** Appels à l'API Gemini (clé fournie par Google AI Studio, stockée en secret Worker). */
+async function genererGemini(
+  c: { env: Env },
+  messages: Array<{ role: string; content: string }>,
+): Promise<{ texte: string; modele: string } | null> {
   const key = c.env.GEMINI_API_KEY;
-  if (!key) return null;
-  try {
-    const texte = messages.map((m) => `${m.role.toUpperCase()} : ${m.content}`).join('\n\n');
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODELE_GEMINI}:generateContent?key=${encodeURIComponent(key)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: texte }] }],
-          generationConfig: { maxOutputTokens: 600, responseMimeType: 'application/json' },
-        }),
-      },
-    );
-    if (!res.ok) {
-      console.error('Gemini HTTP', res.status, await res.text());
-      return null;
-    }
-    const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const texteReponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    return typeof texteReponse === 'string' && texteReponse.trim() ? texteReponse : null;
-  } catch (e) {
-    console.error('Gemini KO', e);
+  if (!key) {
+    console.warn('GEMINI_API_KEY absente : repli direct sur Workers AI.');
     return null;
   }
+  const texte = messages.map((m) => `${m.role.toUpperCase()} : ${m.content}`).join('\n\n');
+  for (const modele of modelesGemini(c.env)) {
+    try {
+      const controleur = new AbortController();
+      const delai = setTimeout(() => controleur.abort(), 20000);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent?key=${encodeURIComponent(key)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: texte }] }],
+            generationConfig: { maxOutputTokens: 1200 },
+          }),
+          signal: controleur.signal,
+        },
+      );
+      clearTimeout(delai);
+      if (!res.ok) {
+        console.error('Gemini HTTP', modele, res.status, (await res.text()).slice(0, 300));
+        continue;
+      }
+      const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const texteReponse = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (typeof texteReponse === 'string' && texteReponse.trim()) {
+        console.info('IA brouillon : Gemini', modele);
+        return { texte: texteReponse, modele };
+      }
+      console.error('Gemini réponse vide', modele);
+    } catch (e) {
+      console.error('Gemini KO', modele, e instanceof Error ? e.message : e);
+    }
+  }
+  return null;
 }
 
 const UNITES_GEMINI = new Set(['KG', 'G', 'L', 'CL', 'UNIT', 'PORTION']);
 
-function normaliserWantedGemini(input: unknown): Array<{ label: string; quantity: number | null; unit: string | null }> | null {
+export function normaliserWantedGemini(input: unknown): Array<{ label: string; quantity: number | null; unit: string | null }> | null {
   if (!Array.isArray(input)) return null;
   const items: Array<{ label: string; quantity: number | null; unit: string | null }> = [];
   for (const brut of input.slice(0, 20)) {
@@ -193,28 +352,49 @@ async function mealDbImage(texte: string): Promise<string | null> {
 aiRoutes.post('/table-draft', async (c) => {
   const auth = await requireAuth(c);
   if (!auth) return apiError('UNAUTHENTICATED', 'Jeton absent, expire ou invalide.');
-  const b = (await c.req.json().catch(() => null)) as { description?: string } | null;
+  const b = (await c.req.json().catch(() => null)) as { description?: string; ambianceHint?: string } | null;
   const description = (b?.description ?? '').trim();
   if (description.length < 3 || description.length > 1000) {
     return apiError('VALIDATION_ERROR', 'description invalide.', { field: 'description' });
   }
+  // Mots-clés saisis par l'utilisateur dans le champ ambiance : l'IA doit les intégrer.
+  const hint = typeof b?.ambianceHint === 'string' ? b.ambianceHint.trim().slice(0, 300) : '';
+  // Un seul appel : données structurées en JSON sur la 1re ligne, puis les
+  // deux paragraphes séparés (ligne « AMBIANCE : » entre les deux).
   const messages = [
     {
       role: 'system',
       content:
-        'Tu es un assistant de cuisine convivial. À partir de la description fournie par l\'utilisateur (que tu dois respecter et conserver), propose un brouillon de tablée. Si la description mentionne un nombre de personnes (ex. « pour 6 », « 8 convives »), utilise ce nombre pour seatsTotal et adapte les quantités en conséquence ; sinon utilise 4. Réponds UNIQUEMENT en JSON avec les clés : dishName (string court), description (string, reprend la description de l\'utilisateur telle quelle), ambiance (string, un paragraphe de 2 à 3 phrases fluides décrivant l\'ambiance du repas, PAS une liste ni une énumération), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes adaptées au nombre de personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif.',
+        'Tu es un assistant de cuisine convivial. À partir de la description fournie par l\'utilisateur, propose un brouillon de tablée. Si la description mentionne un nombre de personnes (ex. « pour 6 », « 8 convives »), utilise ce nombre pour seatsTotal et adapte les quantités en conséquence ; sinon utilise 4. Ta réponse commence par UNE SEULE ligne JSON avec les clés : dishName (string court), wantedContributions (tableau d\'objets {label, quantity, unit}), seatsTotal (entier), durationMinutes (entier). Pour wantedContributions, propose 4 à 8 ingrédients réels et précis, avec des quantités sobres et réalistes adaptées au nombre de personnes. La valeur de "unit" doit être UNIQUEMENT parmi : KG, G, L, CL, UNIT, PORTION. La valeur de "quantity" doit être un nombre strictement positif. Après cette ligne JSON, saute une ligne puis écris UN SEUL paragraphe de 4 à 6 phrases appétissantes qui présente UNIQUEMENT LE PLAT — saveurs, textures, ingrédients stars, préparation, service ; PAS de liste, PAS de sauts de ligne dans le paragraphe, ne recopie pas la saisie mot à mot, n\'invente pas un autre plat, NE PARLE NI des convives NI de l\'ambiance. Saute une ligne, écris la ligne « AMBIANCE : », saute une ligne, puis écris UN SEUL paragraphe de 2 à 3 phrases (300 caractères maximum) qui DÉCRIT l\'ambiance dans laquelle les invités seront reçus — décor, lumière, humeur du moment — au présent ou au futur, comme une invitation qui donne envie de venir ; INTERDIT : recommandations, conseils, « il est recommandé », « il faut », « pensez à » ; PAS de liste, PAS d\'énumération, PAS de sauts de ligne dans le paragraphe, et ne décris JAMAIS le plat lui-même.' +
+        (hint ? ` Intègre obligatoirement ces mots-clés dans le paragraphe d'ambiance : « ${hint} ».` : ''),
     },
     { role: 'user', content: description },
   ];
-  const reponse = (await genererGemini(c, messages)) ?? (await generer(c, messages));
+  // Gemini d'abord (chaîne de modèles), Workers AI ensuite, repli local en dernier.
+  async function genererTexte(): Promise<{ texte: string; moteur: string } | null> {
+    const gemini = await genererGemini(c, messages);
+    if (gemini) return { texte: gemini.texte, moteur: `gemini:${gemini.modele}` };
+    const texte = await generer(c, messages);
+    return texte ? { texte, moteur: 'workers-ai' } : null;
+  }
+  let resultat = await genererTexte();
+  let brouillon = resultat ? extraireBrouillon(resultat.texte) : null;
+  if (resultat && brouillon && !brouillon.ambiance && !hint) {
+    // Réponse sans ambiance exploitable et aucun mot-clé : un seul nouvel essai.
+    console.warn('IA brouillon sans ambiance, nouvel essai.');
+    resultat = await genererTexte();
+    brouillon = resultat ? extraireBrouillon(resultat.texte) : null;
+  }
 
-  if (!reponse) {
+  if (!resultat || !brouillon) {
+    if (resultat) console.error('IA brouillon inparseable, repli local.', resultat.texte.slice(0, 500));
     const nomRepli = description.slice(0, 60);
     return c.json({
       data: {
         dishName: nomRepli,
         description,
-        ambiance: null,
+        ambiance: hint || null,
+        moteur: 'local',
         wantedContributions: await suggestionsMealDb(description),
         dishImageUrl: await mealDbImage(nomRepli),
         seatsTotal: 4,
@@ -223,14 +403,17 @@ aiRoutes.post('/table-draft', async (c) => {
     });
   }
 
-  const parsed = extraireJson(reponse) as Record<string, unknown> | null;
+  const parsed = brouillon.data;
+  const moteur = resultat.moteur;
+  const ambianceFinale = brouillon.ambiance ? tronquerTexte(brouillon.ambiance, 300) : hint || null;
   const nom = typeof parsed?.dishName === 'string' ? parsed.dishName : description.slice(0, 60);
   const wantedIA = normaliserWantedGemini(parsed?.wantedContributions);
   return c.json({
     data: {
       dishName: nom,
-      description: typeof parsed?.description === 'string' ? parsed.description : description,
-      ambiance: typeof parsed?.ambiance === 'string' ? parsed.ambiance : null,
+      description: brouillon.description ?? description,
+      ambiance: ambianceFinale,
+      moteur,
       wantedContributions: wantedIA ?? await suggestionsMealDb(`${nom} ${description}`),
       dishImageUrl: await mealDbImage(nom),
       seatsTotal: Number.isFinite(Number(parsed?.seatsTotal)) ? Number(parsed?.seatsTotal) : 4,
@@ -266,7 +449,8 @@ aiRoutes.post('/table-suggestions', async (c) => {
     },
     { role: 'user', content: query },
   ];
-  const reponse = (await genererGemini(c, messagesSuggestion)) ?? (await generer(c, messagesSuggestion));
+  const reponse =
+    (await genererGemini(c, messagesSuggestion))?.texte ?? (await generer(c, messagesSuggestion));
 
   // Repli lexical quand l'IA ne répond pas : on rapproche les mots de la demande
   // des noms de plats du catalogue.

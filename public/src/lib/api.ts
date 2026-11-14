@@ -177,8 +177,6 @@ export function listTables(params: TableQuery = {}): Promise<Page<Table>> {
 
 export interface TableSuggestions {
   dishes: string[];
-  neighborhoods: string[];
-  cities: string[];
 }
 
 export function suggestTables(query: string): Promise<TableSuggestions> {
@@ -187,8 +185,6 @@ export function suggestTables(query: string): Promise<TableSuggestions> {
     const uniq = (valeurs: string[]) => [...new Set(valeurs)];
     return Promise.resolve({
       dishes: uniq(DEMO_ALL.map((t) => t.dishName)).filter((v) => v.toLowerCase().includes(texte)).slice(0, 8),
-      neighborhoods: uniq(DEMO_ALL.map((t) => t.location.neighborhood)).filter((v) => v.toLowerCase().includes(texte)).slice(0, 8),
-      cities: uniq(DEMO_ALL.map((t) => t.location.city)).filter((v) => v.toLowerCase().includes(texte)).slice(0, 8),
     });
   }
   return apiGet<{ data: TableSuggestions }>(`${BASE}/tables/suggestions?q=${encodeURIComponent(query.trim())}`).then((r) => r.data);
@@ -202,18 +198,18 @@ export interface TableDraft {
   dishName: string;
   description: string;
   ambiance?: string | null;
+  moteur?: string | null;
   dishImageUrl?: string | null;
   wantedContributions: Array<{ label: string; quantity?: number | null; unit?: string | null }>;
   seatsTotal: number;
   durationMinutes: number;
 }
 
-export function draftTableWithAi(description: string): Promise<TableDraft> {
-  return apiPost<{ data: TableDraft }>(`${BASE}/ai/table-draft`, { description }).then((r) => r.data);
-}
-
-export function suggestTablesWithAi(query: string): Promise<{ dishes: string[] }> {
-  return apiPost<{ data: { dishes: string[] } }>(`${BASE}/ai/table-suggestions`, { query }).then((r) => r.data);
+export function draftTableWithAi(description: string, ambianceHint?: string): Promise<TableDraft> {
+  return apiPost<{ data: TableDraft }>(`${BASE}/ai/table-draft`, {
+    description,
+    ...(ambianceHint?.trim() ? { ambianceHint: ambianceHint.trim() } : {}),
+  }).then((r) => r.data);
 }
 
 export const listMyTables = (scope: TableScope = 'upcoming', page = 1, pageSize = 20) =>

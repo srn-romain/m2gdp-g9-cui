@@ -7,6 +7,7 @@ const routes = [
   { path: '/', component: () => import('@/views/HomeView.vue'), meta: { requiresAuth: true, tabs: true } },
   { path: '/autour', component: () => import('@/views/NearbyView.vue'), meta: { requiresAuth: true } },
   { path: '/avenir', component: () => import('@/views/UpcomingView.vue'), meta: { requiresAuth: true } },
+  { path: '/passees', component: () => import('@/views/PastView.vue'), meta: { requiresAuth: true } },
   { path: '/explorer', component: () => import('@/views/ExplorerView.vue'), meta: { requiresAuth: true, tabs: true } },
   { path: '/creer', component: () => import('@/views/CreateTableView.vue'), meta: { requiresAuth: true, requiresOnboarded: true, tabs: true } },
   { path: '/messages', component: () => import('@/views/MessagesView.vue'), meta: { requiresAuth: true, tabs: true } },

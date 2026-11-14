@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, ChevronUp, TriangleAlert } from '@lucide/vue';
+import { ChevronRight, TriangleAlert } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import illustration from '@/assets/bonjour.png';
 import AccentStroke from '@/components/AccentStroke.vue';
@@ -32,7 +32,6 @@ const upcoming = ref<Table[]>([]);
 const past = ref<Table[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const showAllPast = ref(false);
 const proches = ref<Table[]>([]);
 
 const firstName = computed(() => meStore.profile?.firstName ?? '');
@@ -41,7 +40,7 @@ const profilIncomplet = computed(() => meStore.profile != null && !meStore.isOnb
 const visibleUpcoming = computed(() =>
   upcoming.value.slice(0, 2),
 );
-const visiblePast = computed(() => (showAllPast.value ? past.value : past.value.slice(0, 1)));
+const visiblePast = computed(() => past.value.slice(0, 1));
 /** Sans passé ni à-venir, on présente l'écran vide de la maquette. */
 const isEmpty = computed(() => !upcoming.value.length && !past.value.length);
 
@@ -132,7 +131,7 @@ onMounted(async () => {
             Voir tout
           </RouterLink>
         </div>
-        <div class="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+        <div class="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 no-scrollbar">
           <template v-if="loading">
             <Skeleton v-for="i in 3" :key="i" class="h-48 w-44 shrink-0 rounded-2xl" />
           </template>
@@ -224,16 +223,14 @@ onMounted(async () => {
         <section v-if="past.length" class="flex flex-col gap-4">
           <SectionHeading title="Passées">
             <template #action>
-              <button
+              <RouterLink
                 v-if="past.length >= 2"
-                type="button"
+                to="/passees"
                 class="flex items-center gap-0.5 text-label-sm text-secondaire"
-                @click="showAllPast = !showAllPast"
               >
-                {{ showAllPast ? 'Réduire' : `Voir tout (${past.length})` }}
-                <ChevronDown v-if="!showAllPast" class="size-3.5" :stroke-width="2.25" />
-                <ChevronUp v-else class="size-3.5" :stroke-width="2.25" />
-              </button>
+                Voir tout ({{ past.length }})
+                <ChevronRight class="size-3.5" :stroke-width="2.25" />
+              </RouterLink>
             </template>
           </SectionHeading>
           <RouterLink

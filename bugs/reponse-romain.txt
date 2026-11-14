@@ -1,0 +1,60 @@
+Retour 1 — fixe
+
+--------------------------------------------------------------------------------
+
+Retour 2 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 3 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 4 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 5 —  le cas est déjà géré par l'option « Je ne fais pas les
+courses ».
+
+--------------------------------------------------------------------------------
+
+Retour 6 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 7 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 8 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 9 — comportement normal. Dans les applications de messagerie,
+la barre de navigation disparaît quand on entre en profondeur, comme dans
+WhatsApp, Instagram ou Facebook. Dans le chat, une barre supplémentaire créerait
+une confusion avec la zone de saisie, l'image et l'envoi.
+
+--------------------------------------------------------------------------------
+
+Retour 10 — comportement normal et attendu. L'explorateur applique des
+filtres, tandis que « Voir tout » montre l'ensemble, du plus proche au plus
+éloigné.
+
+--------------------------------------------------------------------------------
+
+Retour 11 — Impossible de supprimer la photo de profil
+la photo fait partie des informations obligatoires avant
+toute action. Dans une application de rencontres entre voisins, garder une photo
+rassure les hôtes et les invités ; permettre sa suppression ne semble pas idéal.
+
+--------------------------------------------------------------------------------
+
+Retour 12 — fix
+
+--------------------------------------------------------------------------------
+
+Retour 13 — fix
+
+--------------------------------------------------------------------------------

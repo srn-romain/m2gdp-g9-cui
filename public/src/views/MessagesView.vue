@@ -152,6 +152,7 @@ const contributionsOuvertes = ref(false);
 const champPhoto = ref<HTMLInputElement | null>(null);
 
 const titre = computed(() => (table.value ? tableTitle(table.value) : 'Discussion'));
+const filFerme = computed(() => table.value?.status === 'PASSED');
 const sousTitre = computed(() => {
   if (!table.value) return '';
   const quand = formatDayTime(table.value.startsAt);
@@ -191,7 +192,7 @@ async function ajouter(created: Message) {
 
 async function envoyerTexte() {
   const texte = draft.value.trim();
-  if (!texte || !tableId.value) return;
+  if (!texte || !tableId.value || filFerme.value) return;
   sending.value = true;
   try {
     await ajouter(await postMessage(tableId.value, { type: 'TEXT', text: texte }));
@@ -226,7 +227,7 @@ async function envoyerPhoto(evenement: Event) {
   const champ = evenement.target as HTMLInputElement;
   const fichier = champ.files?.[0];
   champ.value = '';
-  if (!fichier) return;
+  if (!fichier || filFerme.value) return;
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(fichier.type)) {
     toast.error('Formats acceptés : JPEG, PNG ou WebP.');
     return;
@@ -339,7 +340,7 @@ watch(tableId, (id) => {
         </EmptyHeader>
       </Empty>
       <p v-else-if="!messages.length" class="py-10 text-center text-body-sm text-secondaire">
-        Aucun message pour l'instant. Lance la conversation.
+        {{ filFerme ? "Aucun message dans cette tablée passée." : "Aucun message pour l'instant. Lance la conversation." }}
       </p>
       <ul v-else class="flex flex-col gap-4">
         <li
@@ -390,6 +391,7 @@ watch(tableId, (id) => {
     </div>
 
     <form
+      v-if="!filFerme"
       class="app-pad tab-bar sticky bottom-0 flex items-center gap-2 bg-creme pt-2"
       @submit.prevent="envoyerTexte"
     >
@@ -422,6 +424,11 @@ watch(tableId, (id) => {
         <ArrowUp class="size-5" :stroke-width="2.25" />
       </button>
     </form>
+    <div v-else class="app-pad tab-bar sticky bottom-0 bg-creme pt-2">
+      <p class="flex items-center justify-center gap-2 rounded-full bg-ardoise/5 px-4 py-3 text-body-sm text-secondaire">
+        Tablée passée — fil en lecture seule
+      </p>
+    </div>
 
     <Drawer v-model:open="contributionsOuvertes">
       <DrawerContent class="bg-creme">

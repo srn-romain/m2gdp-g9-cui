@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   CalendarDays,
-  ChevronDown,
   ChevronRight,
   List as ListIcon,
   Map as MapIcon,
@@ -25,7 +24,8 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePosition } from '@/composables/usePosition';
-import { listTables, popularDishes, suggestTables, suggestTablesWithAi } from '@/lib/api';
+import { listTables, popularDishes, suggestTables } from '@/lib/api';
+import { readExplorerFilters, writeExplorerFilters } from '@/lib/explorerFilters';
 import {
   DIETARY_OPTIONS,
   formatDay,
@@ -39,6 +39,16 @@ import { useMeStore } from '@/stores/me';
 const RAYONS = [1, 2, 5, 10, 20];
 const RAYON_DEFAUT = 2;
 
+function stockageFiltres(): Pick<Storage, 'getItem' | 'setItem'> | undefined {
+  try {
+    return typeof window === 'undefined' ? undefined : window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+const filtresEnregistres = readExplorerFilters(stockageFiltres(), RAYONS, RAYON_DEFAUT);
+
 /** Champ de saisie arrondi, aligné sur la maquette de recherche. */
 const CHAMP = 'h-[52px] rounded-full border-ardoise/10 bg-surface';
 
@@ -46,15 +56,15 @@ const meStore = useMeStore();
 const position = usePosition();
 const route = useRoute();
 
-const q = ref('');
+const q = ref(filtresEnregistres.query);
 const rechercheGlobale = ref(false);
-const ceSoir = ref(false);
-const regimes = ref<DietaryPreference[]>([]);
-const radiusKm = ref(RAYON_DEFAUT);
+const ceSoir = ref(filtresEnregistres.tonight);
+const regimes = ref<DietaryPreference[]>([...filtresEnregistres.diets]);
+const radiusKm = ref(filtresEnregistres.radiusKm);
 const filtresOuverts = ref(false);
 const view = ref<'liste' | 'carte'>('liste');
 const selectedId = ref<string | null>(null);
-const suggestions = ref<Array<{ type: 'plat' | 'quartier' | 'ville'; value: string }>>([]);
+const suggestions = ref<string[]>([]);
 const suggestionsOuvertes = ref(false);
 const fallbackSuggestions = ref<string[]>([]);
 
@@ -151,12 +161,22 @@ function retirerFiltres() {
   radiusKm.value = RAYON_DEFAUT;
 }
 
+function sauvegarderFiltres() {
+  writeExplorerFilters(stockageFiltres(), {
+    query: q.value,
+    tonight: ceSoir.value,
+    diets: regimes.value,
+    radiusKm: radiusKm.value,
+  });
+}
+
 let minuteur: ReturnType<typeof setTimeout> | undefined;
 watch(q, () => {
   clearTimeout(minuteur);
   minuteur = setTimeout(() => void load(), 400);
 });
 watch([ceSoir, regimes, radiusKm], () => void load(), { deep: true });
+watch([q, ceSoir, regimes, radiusKm], sauvegarderFiltres, { deep: true });
 
 let minuteurSuggestion: ReturnType<typeof setTimeout> | undefined;
 
@@ -169,11 +189,8 @@ async function chargerSuggestions() {
   }
   try {
     const resultat = await suggestTables(texte);
-    suggestions.value = [
-      ...resultat.dishes.map((value) => ({ type: 'plat' as const, value })),
-      ...resultat.neighborhoods.map((value) => ({ type: 'quartier' as const, value })),
-      ...resultat.cities.map((value) => ({ type: 'ville' as const, value })),
-    ];
+    // Seuls les noms de plats existants sont suggérés, sans ville ni quartier.
+    suggestions.value = [...resultat.dishes];
     suggestionsOuvertes.value = suggestions.value.length > 0;
   } catch {
     suggestions.value = [];
@@ -182,16 +199,11 @@ async function chargerSuggestions() {
 }
 
 async function chargerFallback() {
+  // Repli 100 % base de données : les plats les plus proposés sur des
+  // tablées à venir, sans IA. Limité à 3 suggestions.
   try {
     const populaires = await popularDishes();
-    let semantiques: string[] = [];
-    try {
-      const ia = await suggestTablesWithAi(q.value);
-      semantiques = ia.dishes;
-    } catch {
-      semantiques = [];
-    }
-    fallbackSuggestions.value = [...new Set([...semantiques, ...populaires])].slice(0, 6);
+    fallbackSuggestions.value = [...new Set(populaires)].slice(0, 3);
   } catch {
     fallbackSuggestions.value = [];
   }
@@ -204,8 +216,8 @@ function choisirFallback(dish: string) {
   suggestionsOuvertes.value = false;
 }
 
-function choisirSuggestion(suggestion: { type: 'plat' | 'quartier' | 'ville'; value: string }) {
-  q.value = suggestion.value;
+function choisirSuggestion(dish: string) {
+  q.value = dish;
   suggestionsOuvertes.value = false;
 }
 
@@ -248,15 +260,14 @@ onMounted(() => {
             class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-ardoise/10 bg-surface shadow-[0_8px_24px_rgba(43,43,43,.14)]"
           >
             <button
-              v-for="(suggestion, index) in suggestions"
+              v-for="(dish, index) in suggestions"
               :key="index"
               type="button"
               class="flex w-full items-center gap-2 px-4 py-2.5 text-body-md text-ardoise transition-colors hover:bg-ardoise/5"
-              @click="choisirSuggestion(suggestion)"
+              @click="choisirSuggestion(dish)"
             >
               <Search class="size-4 shrink-0 text-sauge" :stroke-width="1.9" />
-              <span class="min-w-0 flex-1 truncate text-left">{{ suggestion.value }}</span>
-              <span class="shrink-0 text-micro uppercase tracking-wide text-secondaire">{{ suggestion.type }}</span>
+              <span class="min-w-0 flex-1 truncate text-left">{{ dish }}</span>
             </button>
           </div>
         </div>
@@ -291,11 +302,6 @@ onMounted(() => {
         >
           <CalendarDays class="size-3.5" :class="ceSoir ? 'text-creme' : 'text-sauge'" :stroke-width="2" />
           Ce soir
-          <ChevronDown
-            class="size-3"
-            :class="ceSoir ? 'text-creme' : 'text-sauge/70'"
-            :stroke-width="2.5"
-          />
         </button>
 
         <button
@@ -305,7 +311,7 @@ onMounted(() => {
           @click="filtresOuverts = true"
         >
           <MapPin class="size-3.5 text-sauge" :stroke-width="2" />
-          &lt; {{ radiusKm }} km
+          {{ radiusKm }} km
         </button>
       </div>
 

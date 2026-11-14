@@ -10,7 +10,6 @@ import Stepper from '@/components/Stepper.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupInput } from '@/components/ui/input-group';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useAddressSearch, type Adresse } from '@/composables/useAddressSearch';
 import { createTable, draftTableWithAi, mediaUrl, presignMedia, uploadMedia } from '@/lib/api';
@@ -45,7 +44,6 @@ const lieu = ref('');
 const adresseChoisie = ref<Adresse | null>(null);
 const seatsTotal = ref(4);
 const dietaryTags = ref<DietaryPreference[]>([]);
-const hasAllergenNotice = ref(false);
 const submitting = ref(false);
 const step = ref<1 | 2>(1);
 const aiLoading = ref(false);
@@ -154,8 +152,9 @@ async function enrichirAvecIa() {
   }
   aiLoading.value = true;
   try {
-    const draft = await draftTableWithAi(texte);
+    const draft = await draftTableWithAi(texte, ambiance.value.trim() || undefined);
     if (draft.dishName) dishName.value = draft.dishName;
+    if (draft.description) description.value = draft.description;
     if (draft.ambiance) ambiance.value = draft.ambiance;
     if (draft.dishImageUrl) dishImageUrl.value = draft.dishImageUrl;
     if (draft.seatsTotal) seatsTotal.value = Math.min(30, Math.max(1, draft.seatsTotal));
@@ -228,7 +227,6 @@ async function submit() {
       startsAt: startsAt.value,
       seatsTotal: seatsTotal.value,
       dietaryTags: dietaryTags.value.length ? dietaryTags.value : undefined,
-      hasAllergenNotice: hasAllergenNotice.value,
       wantedContributions: ingredients.value.length
         ? ingredients.value.map(({ label, quantity, unit }) => ({ label, quantity, unit }))
         : undefined,
@@ -516,10 +514,6 @@ onMounted(async () => {
             </button>
           </div>
         </div>
-        <Field v-if="step === 2" orientation="horizontal" class="items-center justify-between">
-          <FieldLabel for="table-allergens">Allergènes indiqués</FieldLabel>
-          <Switch id="table-allergens" v-model="hasAllergenNotice" />
-        </Field>
       </FieldGroup>
 
       <div class="mt-auto pt-4">
