@@ -241,16 +241,6 @@ onMounted(() => {
               aria-label="Rechercher une tablée"
               class="text-body-sm"
             />
-            <InputGroupAddon v-if="q" align="inline-end">
-              <button
-                type="button"
-                class="grid size-6 place-items-center rounded-full text-ardoise/60"
-                aria-label="Effacer la recherche"
-                @click="q = ''"
-              >
-                <X class="size-4" :stroke-width="2" />
-              </button>
-            </InputGroupAddon>
           </InputGroup>
 
           <div
